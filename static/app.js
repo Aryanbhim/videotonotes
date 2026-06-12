@@ -1,7 +1,7 @@
 // Application State
 const state = {
-    provider: localStorage.getItem('api_provider') || 'gemini',
-    apiKey: localStorage.getItem(`api_key_${localStorage.getItem('api_provider') || 'gemini'}`) || localStorage.getItem('gemini_api_key') || '',
+    provider: localStorage.getItem('api_provider') || 'opencode',
+    apiKey: localStorage.getItem(`api_key_${localStorage.getItem('api_provider') || 'opencode'}`) || '',
     activeVideoId: localStorage.getItem('active_video_id') || '',
     videoData: localStorage.getItem('video_data') ? JSON.parse(localStorage.getItem('video_data')) : null,
     chatHistory: [],
@@ -302,6 +302,15 @@ settingsSave.addEventListener('click', () => {
 // Auto-open settings if key is missing on first load
 window.addEventListener('DOMContentLoaded', () => {
     lucide.createIcons();
+
+    // Pre-configure OpenCode endpoint if not already set (for public visitors)
+    if (!localStorage.getItem('api_endpoint_opencode')) {
+        localStorage.setItem('api_endpoint_opencode', 'http://127.0.0.1:4096');
+    }
+    if (!localStorage.getItem('api_provider')) {
+        localStorage.setItem('api_provider', 'opencode');
+    }
+
     const activeProvider = state.provider;
     const key = localStorage.getItem(`api_key_${activeProvider}`) || localStorage.getItem('gemini_api_key');
     if (!key && activeProvider !== 'ollama' && activeProvider !== 'opencode') {
@@ -321,6 +330,7 @@ window.addEventListener('DOMContentLoaded', () => {
         }, 500); // Give player API script a moment to load
     }
 });
+
 
 settingsBtn.addEventListener('click', openSettingsModal);
 closeModalBtn.addEventListener('click', closeSettingsModal);
