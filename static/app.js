@@ -1,9 +1,9 @@
 // Application State
 const state = {
-    provider: localStorage.getItem('api_provider') || 'opencode',
-    apiKey: localStorage.getItem(`api_key_${localStorage.getItem('api_provider') || 'opencode'}`) || localStorage.getItem('gemini_api_key') || '',
-    activeVideoId: '',
-    videoData: null,
+    provider: localStorage.getItem('api_provider') || 'gemini',
+    apiKey: localStorage.getItem(`api_key_${localStorage.getItem('api_provider') || 'gemini'}`) || localStorage.getItem('gemini_api_key') || '',
+    activeVideoId: localStorage.getItem('active_video_id') || '',
+    videoData: localStorage.getItem('video_data') ? JSON.parse(localStorage.getItem('video_data')) : null,
     chatHistory: [],
     youtubePlayer: null,
     youtubeApiReady: false,
@@ -44,6 +44,11 @@ const transcriptDetails = document.getElementById('transcript-details');
 const transcriptChunkCount = document.getElementById('transcript-chunk-count');
 const transcriptChunksList = document.getElementById('transcript-chunks-list');
 const searchTranscriptInput = document.getElementById('search-transcript-input');
+
+// Notes View
+const notesTextarea = document.getElementById('notes-textarea');
+const downloadPdfBtn = document.getElementById('download-pdf-btn');
+const clearNotesBtn = document.getElementById('clear-notes-btn');
 
 // Chat View
 const chatMessages = document.getElementById('chat-messages');
@@ -302,6 +307,19 @@ window.addEventListener('DOMContentLoaded', () => {
     if (!key && activeProvider !== 'ollama' && activeProvider !== 'opencode') {
         setTimeout(openSettingsModal, 1000);
     }
+    
+    // Load persisted notes
+    if (notesTextarea) {
+        notesTextarea.value = localStorage.getItem('video_user_notes') || '';
+    }
+    
+    // Restore video player and summaries if video was previously loaded
+    if (state.videoData && state.activeVideoId) {
+        setTimeout(() => {
+            loadYouTubeVideo(state.activeVideoId);
+            renderVideoData(state.videoData);
+        }, 500); // Give player API script a moment to load
+    }
 });
 
 settingsBtn.addEventListener('click', openSettingsModal);
@@ -345,11 +363,7 @@ processForm.addEventListener('submit', async (e) => {
 
     // Check if configuration is set
     const config = getProviderConfig();
-    if (config.provider !== 'ollama' && config.provider !== 'opencode' && !config.api_key) {
-        alert('Please configure your API settings panel to summarize videos.');
-        openSettingsModal();
-        return;
-    }
+    // Allow keyless requests to proceed so they can fall back to the server-side environment keys.
 
     showLoader(true, "Extracting YouTube details...");
     
@@ -375,6 +389,9 @@ processForm.addEventListener('submit', async (e) => {
         state.activeVideoId = data.video_id;
         state.videoData = data;
         state.chatHistory = [];
+        
+        localStorage.setItem('active_video_id', data.video_id);
+        localStorage.setItem('video_data', JSON.stringify(data));
         
         // Render panels
         loadingStepText.textContent = "Loading embedded video player...";
@@ -659,6 +676,9 @@ function appendMessage(role, text) {
     const icon = document.createElement('i');
     icon.setAttribute('data-lucide', role === 'user' ? 'user' : 'bot');
     
+    const wrapper = document.createElement('div');
+    wrapper.className = 'msg-content-wrapper';
+    
     const content = document.createElement('div');
     content.className = 'msg-content';
     
@@ -669,8 +689,28 @@ function appendMessage(role, text) {
         content.textContent = text;
     }
     
+    wrapper.appendChild(content);
+    
+    // Add "Add to Notes" button (only if not a skeleton loader / error check)
+    if (text && !text.includes('shimmer-msg') && role !== 'loading') {
+        const actionsDiv = document.createElement('div');
+        actionsDiv.className = 'msg-actions';
+        
+        const addToNotesBtn = document.createElement('button');
+        addToNotesBtn.className = 'add-to-notes-btn';
+        addToNotesBtn.title = 'Add this message to My Notes';
+        addToNotesBtn.innerHTML = '<i data-lucide="clipboard-plus"></i>Add to Notes';
+        
+        addToNotesBtn.addEventListener('click', () => {
+            appendChatToNotes(role, text);
+        });
+        
+        actionsDiv.appendChild(addToNotesBtn);
+        wrapper.appendChild(actionsDiv);
+    }
+    
     msgDiv.appendChild(icon);
-    msgDiv.appendChild(content);
+    msgDiv.appendChild(wrapper);
     chatMessages.appendChild(msgDiv);
     
     // Auto-scroll chat
@@ -701,4 +741,267 @@ function formatMarkdown(text) {
     }).join('');
     
     return html;
+}
+
+// --- Notes Feature Handlers & Listeners ---
+
+if (notesTextarea) {
+    notesTextarea.addEventListener('input', () => {
+        localStorage.setItem('video_user_notes', notesTextarea.value);
+    });
+}
+
+if (downloadPdfBtn) {
+    downloadPdfBtn.addEventListener('click', downloadNotesAsPDF);
+}
+
+if (clearNotesBtn) {
+    clearNotesBtn.addEventListener('click', () => {
+        if (notesTextarea && notesTextarea.value.trim() && confirm('Are you sure you want to clear all your notes? This cannot be undone.')) {
+            notesTextarea.value = '';
+            localStorage.removeItem('video_user_notes');
+            localStorage.removeItem('active_video_id');
+            localStorage.removeItem('video_data');
+            state.activeVideoId = '';
+            state.videoData = null;
+        }
+    });
+}
+
+function appendChatToNotes(role, text) {
+    if (!notesTextarea) return;
+    
+    const sender = role === 'user' ? 'User' : 'AI Assistant';
+    // Remove standard html tag wrappers if matching
+    const cleanText = text.replace(/<[^>]*>/g, '').trim();
+    
+    const timestampStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    const noteEntry = `\n\n--- [${sender} - ${timestampStr}] ---\n${cleanText}\n`;
+    
+    notesTextarea.value = notesTextarea.value + noteEntry;
+    localStorage.setItem('video_user_notes', notesTextarea.value);
+    
+    // Switch active tab view to notes
+    const notesTabBtn = document.querySelector('.tab-btn[data-tab="notes"]');
+    if (notesTabBtn) {
+        notesTabBtn.click();
+    }
+    
+    // Scroll notes textarea to the end
+    notesTextarea.scrollTop = notesTextarea.scrollHeight;
+}
+
+function decodeHTMLEntities(text) {
+    if (!text) return '';
+    const tempDiv = document.createElement('div');
+    tempDiv.innerHTML = text;
+    return tempDiv.textContent || tempDiv.innerText || '';
+}
+
+async function downloadNotesAsPDF() {
+    if (!notesTextarea) return;
+    let notesText = notesTextarea.value;
+    if (!notesText.trim()) {
+        alert('Notes are empty! Type something first.');
+        return;
+    }
+    
+    // Disable download button and show loading state
+    const originalBtnText = downloadPdfBtn.innerHTML;
+    downloadPdfBtn.disabled = true;
+    downloadPdfBtn.innerHTML = '<i data-lucide="loader" class="animate-spin" style="width: 16px; height: 16px; margin-right: 8px; vertical-align: middle;"></i><span>Loading Font...</span>';
+    if (window.lucide) {
+        lucide.createIcons();
+    }
+    
+    try {
+        // Clean smart quotes, dashes, tabs, non-breaking spaces
+        notesText = notesText
+            .replace(/\u00a0/g, ' ')
+            .replace(/\t/g, '    ')
+            .replace(/[\u2018\u2019]/g, "'")
+            .replace(/[\u201C\u201D]/g, '"')
+            .replace(/[\u2013\u2014]/g, '-')
+            .replace(/[\u2022]/g, '*')
+            .replace(/[\u2026]/g, '...');
+            
+        // Strip only surrogate pairs / complex emojis that jsPDF / Poppins cannot render
+        notesText = notesText.replace(/[\uD800-\uDBFF][\uDC00-\uDFFF]|\u200D|[\u2700-\u27BF]|[\u2600-\u26FF]|[\u2B50]/g, '');
+        
+        // Safe check of loaded jsPDF namespace
+        let jsPDFConstructor;
+        if (window.jspdf && window.jspdf.jsPDF) {
+            jsPDFConstructor = window.jspdf.jsPDF;
+        } else if (window.jsPDF) {
+            jsPDFConstructor = window.jsPDF;
+        } else {
+            alert("The PDF export library is not loaded yet. Please check your internet connection.");
+            return;
+        }
+        
+        const doc = new jsPDFConstructor();
+        
+        // Load custom Unicode font Poppins (supports Latin and Devanagari/Hindi) dynamically from Google Fonts CDN
+        let fontName = 'helvetica';
+        try {
+            const regularUrl = "https://raw.githubusercontent.com/google/fonts/main/ofl/poppins/Poppins-Regular.ttf";
+            const boldUrl = "https://raw.githubusercontent.com/google/fonts/main/ofl/poppins/Poppins-Bold.ttf";
+            
+            const [regRes, boldRes] = await Promise.all([
+                fetch(regularUrl).then(r => r.arrayBuffer()),
+                fetch(boldUrl).then(r => r.arrayBuffer())
+            ]);
+            
+            const arrayBufferToBase64 = (buffer) => {
+                let binary = '';
+                const bytes = new Uint8Array(buffer);
+                const len = bytes.byteLength;
+                for (let i = 0; i < len; i++) {
+                    binary += String.fromCharCode(bytes[i]);
+                }
+                return window.btoa(binary);
+            };
+            
+            const regBase64 = arrayBufferToBase64(regRes);
+            const boldBase64 = arrayBufferToBase64(boldRes);
+            
+            doc.addFileToVFS('Poppins-Regular.ttf', regBase64);
+            doc.addFont('Poppins-Regular.ttf', 'Poppins', 'normal');
+            
+            doc.addFileToVFS('Poppins-Bold.ttf', boldBase64);
+            doc.addFont('Poppins-Bold.ttf', 'Poppins', 'bold');
+            
+            fontName = 'Poppins';
+        } catch (err) {
+            console.warn("Failed to load Poppins Unicode font, falling back to Helvetica:", err);
+            // Fallback: strip non-ASCII characters if we can't load the custom font
+            notesText = notesText.replace(/[^\x00-\x7F]/g, function(char) {
+                const code = char.charCodeAt(0);
+                if (code >= 128 && code <= 255) return char;
+                return '';
+            });
+        }
+        
+        const margin = 20; // 20mm left/right margins
+        const topMargin = 25; // 25mm top margin to prevent clipping
+        const bottomMargin = 20; // 20mm bottom margin
+        
+        const pageWidth = 210; // A4 standard width in mm
+        const maxLineWidth = pageWidth - (margin * 2); // 170mm text printable width
+        const pageHeight = 297; // A4 standard height in mm
+        const maxPageHeight = pageHeight - bottomMargin; // 277mm bottom margin boundary
+    
+        // Helper function to draw running page header containing ONLY the video title
+        function drawPageHeader(docInstance, titleText) {
+            docInstance.setFont(fontName, "bold");
+            docInstance.setFontSize(14); // bold and larger than normal writing font size (11pt)
+            
+            let sanitizedTitle = decodeHTMLEntities(titleText).replace(/\u00a0/g, ' ');
+            if (fontName === 'helvetica') {
+                sanitizedTitle = sanitizedTitle.replace(/[^\x00-\x7F]/g, function(char) {
+                    const code = char.charCodeAt(0);
+                    if (code >= 128 && code <= 255) return char;
+                    return '';
+                });
+            }
+            
+            const titleLines = docInstance.splitTextToSize(sanitizedTitle, maxLineWidth);
+            
+            let currentY = topMargin;
+            titleLines.forEach(line => {
+                docInstance.text(line, margin, currentY);
+                currentY += 7.5; // line spacing for headline
+            });
+            
+            return currentY + 5; // Return y position below header for notes content to start
+        }
+        
+        let yPos;
+        if (state.videoData && state.videoData.summary && state.videoData.summary.title) {
+            yPos = drawPageHeader(doc, state.videoData.summary.title);
+        } else {
+            yPos = topMargin;
+        }
+        
+        // Render notes content in standard font
+        doc.setFont(fontName, "normal");
+        doc.setFontSize(11);
+        
+        // Split the notes by newlines to respect paragraph breaks exactly how user wrote them
+        const paragraphs = notesText.split(/\r?\n/);
+        
+        paragraphs.forEach(para => {
+            if (para === "") {
+                // Handle explicit blank line: just advance yPos
+                yPos += 6.5;
+                return;
+            }
+            
+            // Wrap the paragraph text to fit the page width
+            const lines = doc.splitTextToSize(para, maxLineWidth);
+            
+            lines.forEach(line => {
+                if (yPos > maxPageHeight) {
+                    doc.addPage();
+                    if (state.videoData && state.videoData.summary && state.videoData.summary.title) {
+                        yPos = drawPageHeader(doc, state.videoData.summary.title);
+                    } else {
+                        yPos = topMargin;
+                    }
+                    // Re-apply fonts specifically on the new page, otherwise they reset to defaults!
+                    doc.setFont(fontName, "normal");
+                    doc.setFontSize(11);
+                }
+                doc.text(line, margin, yPos);
+                yPos += 6.5; // Line height spacing
+            });
+        });
+        
+        // Export file name formatting
+        let filename = "my_notes.pdf";
+        if (state.videoData && state.videoData.summary && state.videoData.summary.title) {
+            const decodedTitle = decodeHTMLEntities(state.videoData.summary.title);
+            filename = decodedTitle
+                .toLowerCase()
+                .replace(/[^a-z0-9]+/g, '_')
+                .substring(0, 30) + "_notes.pdf";
+        }
+        
+        // Trigger Save File Picker to allow user to choose download directory and filename
+        if (window.showSaveFilePicker) {
+            try {
+                const handle = await window.showSaveFilePicker({
+                    suggestedName: filename,
+                    types: [{
+                        description: 'PDF Document',
+                        accept: {
+                            'application/pdf': ['.pdf'],
+                        },
+                    }],
+                });
+                const writable = await handle.createWritable();
+                await writable.write(doc.output('blob'));
+                await writable.close();
+                return;
+            } catch (err) {
+                if (err.name === 'AbortError') {
+                    return; // User cancelled saving
+                }
+                console.warn("showSaveFilePicker failed, using fallback:", err);
+            }
+        }
+        
+        // Fallback standard download if picker API is not supported or was blocked
+        doc.save(filename);
+    } catch (error) {
+        console.error("PDF download error:", error);
+        alert("An error occurred while exporting the PDF: " + error.message);
+    } finally {
+        // Restore download button original state
+        downloadPdfBtn.disabled = false;
+        downloadPdfBtn.innerHTML = originalBtnText;
+        if (window.lucide) {
+            lucide.createIcons();
+        }
+    }
 }

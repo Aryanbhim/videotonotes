@@ -123,6 +123,10 @@
                             <i data-lucide="align-left"></i>
                             <span>Interactive Transcript</span>
                         </button>
+                        <button class="tab-btn" data-tab="notes">
+                            <i data-lucide="edit-3"></i>
+                            <span>My Notes</span>
+                        </button>
                     </div>
 
                     <!-- Tabs Content Viewport -->
@@ -182,6 +186,28 @@
                                 <div class="transcript-chunks-list" id="transcript-chunks-list">
                                     <!-- Populated dynamically -->
                                 </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Tab 4: My Notes -->
+                        <div class="tab-pane" id="tab-notes">
+                            <div class="notes-container">
+                                <div class="notes-header">
+                                    <div class="notes-title-group">
+                                        <i data-lucide="edit-3" class="notes-header-icon"></i>
+                                        <h3>Personal Notes</h3>
+                                    </div>
+                                    <div class="notes-actions">
+                                        <button id="download-pdf-btn" class="glow-btn notes-btn" title="Download Notes as PDF">
+                                            <i data-lucide="download"></i>
+                                            <span>Download PDF</span>
+                                        </button>
+                                        <button id="clear-notes-btn" class="icon-btn danger-btn" title="Clear All Notes">
+                                            <i data-lucide="trash-2"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                                <textarea id="notes-textarea" class="notes-textarea" placeholder="Start typing your thoughts, summaries, or insights here... Or click the clipboard-plus icon next to any message in the Ask Video AI chat to append it here."></textarea>
                             </div>
                         </div>
                     </div>
@@ -275,6 +301,7 @@
         var firstScriptTag = document.getElementsByTagName('script')[0];
         firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
     </script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="app.js"></script>
 </body>
 </html>

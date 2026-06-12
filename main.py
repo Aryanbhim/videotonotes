@@ -335,6 +335,19 @@ def call_llm_api(
             raise RuntimeError(f"HTTP call to {provider.capitalize()} API failed: {str(e)}")
 
 
+def get_youtube_video_title(video_id: str) -> str:
+    """Retrieve the actual YouTube video title via oEmbed API."""
+    try:
+        url = f"https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v={video_id}&format=json"
+        response = requests.get(url, timeout=10)
+        if response.ok:
+            data = response.json()
+            return data.get("title", f"Video Summary ({video_id})")
+    except Exception as e:
+        print(f"Error fetching oEmbed details: {e}")
+    return f"Video Summary ({video_id})"
+
+
 # --- API Endpoints ---
 
 @app.post("/api/process")
@@ -343,6 +356,9 @@ async def process_video(request: ProcessRequest, http_request: Request):
         video_id = extract_video_id(request.youtube_url)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
+        
+    # Fetch actual YouTube video title
+    actual_title = get_youtube_video_title(video_id)
         
     # Get subtitles and full text
     transcript_data, full_text = get_video_transcript(video_id)
@@ -355,7 +371,7 @@ async def process_video(request: ProcessRequest, http_request: Request):
     
     # AI summary generation
     try:
-        system_prompt = "You are an expert video analyst. Analyze the transcript and generate a comprehensive summary in JSON format."
+        system_prompt = "You are an expert video analyst. Analyze the transcript and generate a comprehensive summary in JSON format. You MUST write all output text, titles, summaries, takeaways, chapters, and descriptions strictly in English. If the transcript or video is in a language other than English (such as Hindi), translate all content and return the final JSON summary in English only."
         user_prompt = f"""
 Analyze the following YouTube video transcript and generate a structured JSON summary.
 Identify the main topics and divide the video into logical chapters with summaries and timestamps (start_time in seconds).
@@ -400,10 +416,11 @@ Provide ONLY raw JSON output. Do not include markdown formatting or ```json code
             clean_text = clean_text.strip()
             
         summary_json = json.loads(clean_text)
+        summary_json["title"] = actual_title
     except Exception as e:
         # Graceful fallback if JSON parsing or API fails
         summary_json = {
-            "title": f"Video Summary ({video_id})",
+            "title": actual_title,
             "executive_summary": f"We successfully retrieved the video details, but were unable to compile the AI summary using your API settings. Error: {str(e)}",
             "key_takeaways": [
                 "Could not load AI takeaways. Verify your API Key configuration, model choice, or connection status.",
@@ -428,6 +445,7 @@ async def chat_with_video(request: ChatRequest, http_request: Request):
         system_prompt = f"""You are an expert AI assistant answering questions about a specific YouTube video. 
 Your answers must be strictly grounded in the provided transcript context. If the information is not in the transcript, state that clearly.
 Do not hallucinate or use external knowledge. Formulate your response in Markdown, referencing timestamps if helpful.
+You MUST write all responses strictly in English. If the transcript or question is in Hindi or any other language, translate the context and reply strictly in English.
 
 Transcript:
 {request.transcript}"""

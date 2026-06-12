@@ -1538,3 +1538,148 @@ body {
 .hidden {
     display: none !important;
 }
+
+/* My Notes Section */
+.notes-container {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    gap: 16px;
+}
+
+.notes-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--panel-border);
+}
+
+.notes-title-group {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.notes-header-icon {
+    color: var(--primary);
+    width: 20px;
+    height: 20px;
+}
+
+.notes-title-group h3 {
+    font-family: var(--font-title);
+    font-size: 18px;
+    font-weight: 600;
+}
+
+.notes-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.notes-btn {
+    height: 38px;
+    padding: 0 16px;
+    font-size: 13.5px;
+    box-shadow: 0 2px 8px rgba(99, 102, 241, 0.2);
+}
+
+.danger-btn {
+    border-color: rgba(239, 68, 68, 0.2);
+    color: var(--danger);
+    width: 38px;
+    height: 38px;
+}
+
+.danger-btn:hover {
+    background: rgba(239, 68, 68, 0.1);
+    border-color: var(--danger);
+    color: var(--danger);
+}
+
+.notes-textarea {
+    width: 100%;
+    flex-grow: 1;
+    min-height: 400px;
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid var(--panel-border);
+    border-radius: var(--radius-md);
+    color: var(--text-primary);
+    font-family: var(--font-body);
+    font-size: 14.5px;
+    padding: 16px;
+    line-height: 1.6;
+    resize: none;
+    transition: var(--transition);
+}
+
+.notes-textarea:focus {
+    outline: none;
+    border-color: var(--primary);
+    background: rgba(255, 255, 255, 0.04);
+    box-shadow: 0 0 12px rgba(99, 102, 241, 0.15);
+}
+
+/* Chat Message Actions for Notes */
+.msg-content-wrapper {
+    display: flex;
+    flex-direction: column;
+    max-width: 100%;
+}
+
+.msg-actions {
+    display: flex;
+    gap: 6px;
+    margin-top: 4px;
+    justify-content: flex-end;
+}
+
+.add-to-notes-btn {
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid var(--panel-border);
+    color: var(--text-muted);
+    border-radius: var(--radius-sm);
+    padding: 4px 8px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    cursor: pointer;
+    transition: var(--transition);
+}
+
+.add-to-notes-btn:hover {
+    background: rgba(99, 102, 241, 0.12);
+    border-color: var(--primary);
+    color: var(--text-primary);
+}
+
+.add-to-notes-btn i {
+    width: 12px !important;
+    height: 12px !important;
+    min-width: 12px !important;
+    background: none !important;
+    border: none !important;
+    padding: 0 !important;
+    border-radius: 0 !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+}
+
+/* Spinner Animation Class */
+.animate-spin {
+    animation: spin 1s linear infinite;
+    display: inline-block;
+}
+
+@keyframes spin {
+    from {
+        transform: rotate(0deg);
+    }
+    to {
+        transform: rotate(360deg);
+    }
+}
