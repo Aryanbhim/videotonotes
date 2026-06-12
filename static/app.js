@@ -304,7 +304,7 @@ settingsSave.addEventListener('click', () => {
 
 // Auto-open settings if key is missing on first load
 window.addEventListener('DOMContentLoaded', () => {
-    // Apply theme first so icon renders correctly
+    // Apply saved theme first so icon renders correctly
     const savedTheme = localStorage.getItem('site_theme') || 'dark';
     document.documentElement.setAttribute('data-theme', savedTheme);
     if (themeIcon) {
@@ -355,23 +355,18 @@ function applyTheme(theme) {
     document.documentElement.setAttribute('data-theme', theme);
     localStorage.setItem('site_theme', theme);
     if (themeIcon) {
+        // Swap the icon attribute and re-render just that element
         themeIcon.setAttribute('data-lucide', theme === 'light' ? 'sun' : 'moon');
-        lucide.createIcons(); // re-render the icon
+        lucide.createIcons();
     }
 }
 
-// Apply saved theme on load
-(function () {
-    const saved = localStorage.getItem('site_theme') || 'dark';
-    applyTheme(saved);
-})();
-
-themeToggleBtn.addEventListener('click', () => {
-    const current = localStorage.getItem('site_theme') || 'dark';
-    applyTheme(current === 'dark' ? 'light' : 'dark');
-});
-
-
+if (themeToggleBtn) {
+    themeToggleBtn.addEventListener('click', () => {
+        const current = localStorage.getItem('site_theme') || 'dark';
+        applyTheme(current === 'dark' ? 'light' : 'dark');
+    });
+}
 
 function getProviderConfig() {
     const provider = state.provider;
