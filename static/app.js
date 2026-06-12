@@ -15,6 +15,9 @@ const youtubeUrlInput = document.getElementById('youtube-url');
 const processForm = document.getElementById('process-form');
 const submitBtn = document.getElementById('submit-btn');
 const settingsBtn = document.getElementById('settings-btn');
+const themeToggleBtn = document.getElementById('theme-toggle-btn');
+const themeIcon = document.getElementById('theme-icon');
+
 const loadingOverlay = document.getElementById('loading-overlay');
 const loadingStepText = document.getElementById('loading-step');
 
@@ -301,7 +304,15 @@ settingsSave.addEventListener('click', () => {
 
 // Auto-open settings if key is missing on first load
 window.addEventListener('DOMContentLoaded', () => {
+    // Apply theme first so icon renders correctly
+    const savedTheme = localStorage.getItem('site_theme') || 'dark';
+    document.documentElement.setAttribute('data-theme', savedTheme);
+    if (themeIcon) {
+        themeIcon.setAttribute('data-lucide', savedTheme === 'light' ? 'sun' : 'moon');
+    }
+
     lucide.createIcons();
+
 
     // Pre-configure OpenCode endpoint if not already set (for public visitors)
     if (!localStorage.getItem('api_endpoint_opencode')) {
@@ -338,6 +349,29 @@ settingsCancel.addEventListener('click', closeSettingsModal);
 settingsModal.addEventListener('click', (e) => {
     if (e.target === settingsModal) closeSettingsModal();
 });
+
+// ── Dark / Light Mode Toggle ──────────────────────────────
+function applyTheme(theme) {
+    document.documentElement.setAttribute('data-theme', theme);
+    localStorage.setItem('site_theme', theme);
+    if (themeIcon) {
+        themeIcon.setAttribute('data-lucide', theme === 'light' ? 'sun' : 'moon');
+        lucide.createIcons(); // re-render the icon
+    }
+}
+
+// Apply saved theme on load
+(function () {
+    const saved = localStorage.getItem('site_theme') || 'dark';
+    applyTheme(saved);
+})();
+
+themeToggleBtn.addEventListener('click', () => {
+    const current = localStorage.getItem('site_theme') || 'dark';
+    applyTheme(current === 'dark' ? 'light' : 'dark');
+});
+
+
 
 function getProviderConfig() {
     const provider = state.provider;

@@ -34,6 +34,243 @@
     --shadow-glow: 0 0 20px 0 rgba(99, 102, 241, 0.15);
 }
 
+/* =====================================================
+   LIGHT MODE THEME
+   ===================================================== */
+[data-theme="light"] {
+    --bg-color: #f0f2fa;
+    --panel-bg: rgba(255, 255, 255, 0.85);
+    --panel-border: rgba(0, 0, 0, 0.09);
+    --panel-border-hover: rgba(99, 102, 241, 0.3);
+
+    --primary: #4f46e5;
+    --primary-glow: rgba(79, 70, 229, 0.25);
+    --secondary: #c026d3;
+    --secondary-glow: rgba(192, 38, 211, 0.2);
+    --accent: #0891b2;
+    --accent-glow: rgba(8, 145, 178, 0.2);
+
+    --success: #059669;
+    --danger: #dc2626;
+
+    --text-primary: #0f172a;
+    --text-secondary: #334155;
+    --text-muted: #64748b;
+    --text-glow: rgba(0, 0, 0, 0.08);
+
+    --shadow-main: 0 4px 24px 0 rgba(79, 70, 229, 0.1), 0 1px 4px rgba(0,0,0,0.06);
+    --shadow-glow: 0 0 20px 0 rgba(99, 102, 241, 0.1);
+}
+
+/* Light mode background glows (softer) */
+[data-theme="light"] .glow-1 {
+    opacity: 0.12;
+}
+[data-theme="light"] .glow-2 {
+    opacity: 0.10;
+}
+
+/* Light mode body bg gradient */
+[data-theme="light"] body {
+    background: linear-gradient(135deg, #eef2ff 0%, #faf5ff 50%, #eff6ff 100%);
+}
+
+/* Light mode: panel backgrounds */
+[data-theme="light"] .panel-card,
+[data-theme="light"] .app-header {
+    background: rgba(255, 255, 255, 0.88);
+    border-color: rgba(99, 102, 241, 0.12);
+    box-shadow: 0 4px 20px rgba(79, 70, 229, 0.08), 0 1px 3px rgba(0,0,0,0.05);
+}
+
+/* Light mode: inputs */
+[data-theme="light"] .search-form input,
+[data-theme="light"] .chat-input-form input,
+[data-theme="light"] .input-with-action input,
+[data-theme="light"] .search-transcript-wrapper input {
+    background: rgba(255, 255, 255, 0.9);
+    border-color: rgba(0, 0, 0, 0.12);
+    color: var(--text-primary);
+}
+
+[data-theme="light"] .search-form input::placeholder,
+[data-theme="light"] .chat-input-form input::placeholder {
+    color: #94a3b8;
+}
+
+/* Light mode: chat messages */
+[data-theme="light"] .msg-content {
+    background: rgba(248, 250, 252, 0.9);
+    border-color: rgba(0, 0, 0, 0.08);
+    color: var(--text-secondary);
+}
+
+[data-theme="light"] .message.user-msg .msg-content {
+    background: linear-gradient(135deg, rgba(99, 102, 241, 0.12) 0%, rgba(192, 38, 211, 0.08) 100%);
+    border-color: rgba(99, 102, 241, 0.2);
+    color: var(--text-primary);
+}
+
+[data-theme="light"] .message i {
+    background: rgba(0, 0, 0, 0.04);
+    border-color: rgba(0, 0, 0, 0.08);
+}
+
+/* Light mode: tabs */
+[data-theme="light"] .tabs-header {
+    background: rgba(240, 242, 250, 0.8);
+    border-bottom-color: rgba(0,0,0,0.07);
+}
+
+[data-theme="light"] .tab-pane {
+    background: transparent;
+}
+
+/* Light mode: chat input area */
+[data-theme="light"] .chat-input-form {
+    background: rgba(248, 250, 252, 0.6);
+    border-top-color: rgba(0,0,0,0.07);
+}
+
+/* Light mode: suggested questions */
+[data-theme="light"] .suggested-questions {
+    background: rgba(248, 250, 252, 0.7);
+    border-top-color: rgba(0,0,0,0.07);
+}
+
+[data-theme="light"] .suggestion-chip {
+    background: rgba(255, 255, 255, 0.9);
+    border-color: rgba(0,0,0,0.1);
+    color: var(--text-secondary);
+}
+
+[data-theme="light"] .suggestion-chip:hover {
+    background: rgba(99, 102, 241, 0.08);
+    border-color: var(--primary);
+    color: var(--primary);
+}
+
+/* Light mode: timeline */
+[data-theme="light"] .timeline-content {
+    background: rgba(255,255,255,0.8);
+    border-color: rgba(0,0,0,0.07);
+}
+
+[data-theme="light"] .timeline-content:hover {
+    background: rgba(255,255,255,1);
+    border-color: rgba(99, 102, 241, 0.25);
+}
+
+[data-theme="light"] .chapters-timeline::before {
+    background: rgba(0,0,0,0.08);
+}
+
+[data-theme="light"] .timeline-dot {
+    background: #f0f2fa;
+    border-color: rgba(0,0,0,0.15);
+}
+
+/* Light mode: takeaways */
+[data-theme="light"] .takeaways-list li {
+    background: rgba(255,255,255,0.8);
+    border-color: rgba(0,0,0,0.07);
+}
+
+[data-theme="light"] .takeaways-list li:hover {
+    background: rgba(255,255,255,1);
+    border-color: rgba(99, 102, 241, 0.2);
+}
+
+/* Light mode: transcript */
+[data-theme="light"] .transcript-chunk-card {
+    background: rgba(255,255,255,0.8);
+    border-color: rgba(0,0,0,0.07);
+}
+
+[data-theme="light"] .transcript-chunk-card:hover {
+    background: rgba(255,255,255,1);
+}
+
+/* Light mode: modal */
+[data-theme="light"] .glass-modal,
+[data-theme="light"] .glass-loader {
+    background: rgba(255, 255, 255, 0.97);
+    border-color: rgba(0,0,0,0.08);
+}
+
+[data-theme="light"] .modal-header,
+[data-theme="light"] .modal-footer {
+    border-color: rgba(0,0,0,0.07);
+    background: rgba(248,250,252,0.8);
+}
+
+/* Light mode: executive summary */
+[data-theme="light"] .executive-summary-section {
+    background: rgba(248, 250, 252, 0.9);
+    border-color: rgba(0,0,0,0.07);
+}
+
+/* Light mode: notes textarea */
+[data-theme="light"] .notes-textarea {
+    background: rgba(255,255,255,0.9);
+    border-color: rgba(0,0,0,0.1);
+    color: var(--text-primary);
+}
+
+/* Light mode: scrollbars */
+[data-theme="light"] ::-webkit-scrollbar-thumb {
+    background: rgba(0,0,0,0.15);
+}
+
+[data-theme="light"] ::-webkit-scrollbar-thumb:hover {
+    background: rgba(0,0,0,0.25);
+}
+
+/* Light mode: icon button */
+[data-theme="light"] .icon-btn {
+    background: rgba(255,255,255,0.8);
+    border-color: rgba(0,0,0,0.1);
+    color: var(--text-secondary);
+}
+
+[data-theme="light"] .icon-btn:hover {
+    background: rgba(99, 102, 241, 0.08);
+    border-color: rgba(99, 102, 241, 0.3);
+    color: var(--primary);
+}
+
+/* Light mode: settings select */
+[data-theme="light"] .settings-select {
+    background-color: rgba(255,255,255,0.9);
+    border-color: rgba(0,0,0,0.12);
+    color: var(--text-primary);
+}
+
+[data-theme="light"] .settings-select option {
+    background: #ffffff;
+    color: #0f172a;
+}
+
+/* Light mode: placeholder icons */
+[data-theme="light"] .pane-placeholder i {
+    color: rgba(0,0,0,0.08);
+}
+
+/* Light mode: card header */
+[data-theme="light"] .card-header {
+    border-bottom-color: rgba(0,0,0,0.07);
+}
+
+/* Smooth theme transition */
+body, .panel-card, .app-header, .msg-content, .tab-pane,
+.suggestion-chip, .timeline-content, .takeaways-list li,
+.transcript-chunk-card, .glass-modal, .icon-btn, .chat-input-form,
+.notes-textarea, .settings-select, .executive-summary-section {
+    transition: background 0.35s ease, border-color 0.35s ease, 
+                color 0.35s ease, box-shadow 0.35s ease;
+}
+
+
 /* Base resets */
 * {
     margin: 0;
