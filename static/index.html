@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VideoToNotes.ai - YouTube Video Summarizer & AI Chat</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <!-- Background Glows -->
+    <div class="glow-sphere glow-1"></div>
+    <div class="glow-sphere glow-2"></div>
+
+    <div class="app-container">
+        <!-- Header -->
+        <header class="app-header">
+            <div class="logo-section">
+                <div class="logo-icon">
+                    <i data-lucide="video" class="logo-video"></i>
+                    <i data-lucide="sparkles" class="logo-sparkles"></i>
+                </div>
+                <h1>VideoToNotes<span>.ai</span></h1>
+            </div>
+            
+            <div class="search-bar-container">
+                <form id="process-form" class="search-form">
+                    <div class="input-wrapper">
+                        <i data-lucide="link" class="input-icon"></i>
+                        <input type="text" id="youtube-url" placeholder="Paste YouTube Video URL (e.g. https://www.youtube.com/watch?v=...)" required autocomplete="off">
+                    </div>
+                    <button type="submit" id="submit-btn" class="glow-btn">
+                        <span>Summarize</span>
+                        <i data-lucide="arrow-right"></i>
+                    </button>
+                </form>
+            </div>
+
+            <div class="header-actions">
+                <button id="settings-btn" class="icon-btn" title="API Settings">
+                    <i data-lucide="settings"></i>
+                </button>
+            </div>
+        </header>
+
+        <!-- Main Workspace -->
+        <main class="app-main">
+            <!-- Left Side: Video Player & Chat -->
+            <section class="left-panel">
+                <!-- Video Section -->
+                <div class="panel-card video-card">
+                    <div id="video-placeholder" class="video-placeholder">
+                        <div class="placeholder-content">
+                            <div class="p-icon-circle">
+                                <i data-lucide="youtube"></i>
+                            </div>
+                            <h3>Enter a YouTube link above</h3>
+                            <p>We'll load the video player and extract the transcript details for you in seconds.</p>
+                        </div>
+                    </div>
+                    <div id="player-container" class="player-container hidden">
+                        <div id="youtube-player"></div>
+                    </div>
+                </div>
+
+                <!-- Chat Section -->
+                <div class="panel-card chat-card">
+                    <div class="card-header">
+                        <div class="header-title">
+                            <i data-lucide="messages-square" class="header-icon"></i>
+                            <h2>Ask Video AI</h2>
+                        </div>
+                        <span class="status-badge" id="chat-status">Ready</span>
+                    </div>
+
+                    <!-- Chat Messages Area -->
+                    <div class="chat-messages" id="chat-messages">
+                        <div class="message system-msg">
+                            <i data-lucide="bot"></i>
+                            <div class="msg-content">
+                                <p>Hi! Once the transcript is loaded, you can ask me anything about the video contents. I'll search the transcript and give you grounded answers.</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Suggested Questions -->
+                    <div class="suggested-questions hidden" id="suggested-questions">
+                        <span class="suggested-label">Ask:</span>
+                        <div class="suggestions-list" id="suggestions-list">
+                            <!-- Populated dynamically -->
+                        </div>
+                    </div>
+
+                    <!-- Chat Input Form -->
+                    <form id="chat-form" class="chat-input-form">
+                        <input type="text" id="chat-input" placeholder="Ask a question about the video..." disabled autocomplete="off">
+                        <button type="submit" id="chat-send-btn" class="send-btn" disabled>
+                            <i data-lucide="send"></i>
+                        </button>
+                    </form>
+                </div>
+            </section>
+
+            <!-- Right Side: Transcripts & Summaries -->
+            <section class="right-panel">
+                <div class="panel-card dashboard-card">
+                    <!-- Tab Navigation -->
+                    <div class="tabs-header">
+                        <button class="tab-btn active" data-tab="summary">
+                            <i data-lucide="file-text"></i>
+                            <span>Summary</span>
+                        </button>
+                        <button class="tab-btn" data-tab="takeaways">
+                            <i data-lucide="lightbulb"></i>
+                            <span>Key Takeaways</span>
+                        </button>
+                        <button class="tab-btn" data-tab="transcript">
+                            <i data-lucide="align-left"></i>
+                            <span>Interactive Transcript</span>
+                        </button>
+                    </div>
+
+                    <!-- Tabs Content Viewport -->
+                    <div class="tabs-content">
+                        <!-- Tab 1: Summary -->
+                        <div class="tab-pane active" id="tab-summary">
+                            <div class="pane-placeholder" id="summary-placeholder">
+                                <i data-lucide="sparkle" class="sparkle-loader"></i>
+                                <h3>AI-Generated Summary</h3>
+                                <p>Provide a YouTube link above to see the AI summaries, chapters, and key points of the video.</p>
+                            </div>
+                            <div class="summary-details hidden" id="summary-details">
+                                <h2 class="video-title-header" id="summary-video-title">Video Title</h2>
+                                <div class="executive-summary-section">
+                                    <h3>Executive Summary</h3>
+                                    <p id="summary-exec-text">Executive summary text goes here.</p>
+                                </div>
+                                <div class="chapters-section">
+                                    <h3>Logical Chapters</h3>
+                                    <div class="chapters-timeline" id="chapters-timeline">
+                                        <!-- Chapters populated dynamically -->
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Tab 2: Takeaways -->
+                        <div class="tab-pane" id="tab-takeaways">
+                            <div class="pane-placeholder" id="takeaways-placeholder">
+                                <i data-lucide="lightbulb"></i>
+                                <h3>Key Takeaways</h3>
+                                <p>Extract key lessons, metrics, and quotes from the video transcript once loaded.</p>
+                            </div>
+                            <div class="takeaways-details hidden" id="takeaways-details">
+                                <h3>Major Insights</h3>
+                                <ul class="takeaways-list" id="takeaways-list">
+                                    <!-- Populated dynamically -->
+                                </ul>
+                            </div>
+                        </div>
+
+                        <!-- Tab 3: Transcript -->
+                        <div class="tab-pane" id="tab-transcript">
+                            <div class="pane-placeholder" id="transcript-placeholder">
+                                <i data-lucide="align-left"></i>
+                                <h3>Interactive Transcript</h3>
+                                <p>Browse and read the transcript divided into neat timestamped chunks.</p>
+                            </div>
+                            <div class="transcript-details hidden" id="transcript-details">
+                                <div class="transcript-controls">
+                                    <span class="transcript-info" id="transcript-chunk-count">Chunks: 0</span>
+                                    <div class="search-transcript-wrapper">
+                                        <i data-lucide="search"></i>
+                                        <input type="text" id="search-transcript-input" placeholder="Search transcript text...">
+                                    </div>
+                                </div>
+                                <div class="transcript-chunks-list" id="transcript-chunks-list">
+                                    <!-- Populated dynamically -->
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- Processing Overlay Screen -->
+    <div class="overlay hidden" id="loading-overlay">
+        <div class="glass-loader">
+            <div class="loading-spinner"></div>
+            <h2>Processing Video</h2>
+            <p id="loading-step">Extracting YouTube details...</p>
+            <div class="loading-bar">
+                <div class="loading-progress" id="loading-progress"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Settings API Key Modal -->
+    <div class="modal-overlay hidden" id="settings-modal">
+        <div class="glass-modal">
+            <div class="modal-header">
+                <h2><i data-lucide="key"></i> API Settings</h2>
+                <button class="close-btn" id="close-modal-btn">
+                    <i data-lucide="x"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <p>Configure your preferred LLM Provider. Settings are stored locally in your browser and are never sent anywhere except the video summarizer API.</p>
+                
+                <div class="form-group">
+                    <label for="provider-select">API Provider</label>
+                    <select id="provider-select" class="settings-select">
+                        <option value="gemini">Google Gemini</option>
+                        <option value="nvidia">Nvidia API (kimi-k2.6)</option>
+                        <option value="openai">OpenAI (gpt-4o-mini)</option>
+                        <option value="groq">Groq (llama3-8b)</option>
+                        <option value="openrouter">OpenRouter</option>
+                        <option value="ollama">Ollama (Local)</option>
+                        <option value="opencode">OpenCode (Local)</option>
+                    </select>
+                </div>
+                
+                <div class="form-group" id="api-key-group">
+                    <label for="api-key-input" id="api-key-label">Gemini API Key</label>
+                    <div class="input-with-action">
+                        <input type="password" id="api-key-input" placeholder="Enter GEMINI_API_KEY...">
+                        <button id="toggle-key-visibility" class="view-btn" type="button">
+                            <i data-lucide="eye"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="form-group" id="model-group">
+                    <label for="model-input">Model Name (Optional)</label>
+                    <div class="input-with-action">
+                        <input type="text" id="model-input" placeholder="Default model will be used if blank">
+                    </div>
+                </div>
+
+                <div class="form-group" id="endpoint-group">
+                    <label for="endpoint-input">Endpoint URL (Optional)</label>
+                    <div class="input-with-action">
+                        <input type="text" id="endpoint-input" placeholder="Default endpoint will be used if blank">
+                    </div>
+                </div>
+                
+                <div class="key-status" id="key-status-msg">
+                    <!-- Dynamic validation check status -->
+                </div>
+
+                <div class="helper-text" id="settings-helper-text">
+                    <i data-lucide="info"></i>
+                    <span id="helper-text-span">Don't have a key? Get one for free at the <a href="https://aistudio.google.com/" target="_blank">Google AI Studio</a>.</span>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="cancel-btn" id="settings-cancel">Cancel</button>
+                <button class="save-btn" id="settings-save">Save Configuration</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Script imports -->
+    <script>
+        // Load YouTube Player API script asynchronously
+        var tag = document.createElement('script');
+        tag.src = "https://www.youtube.com/iframe_api";
+        var firstScriptTag = document.getElementsByTagName('script')[0];
+        firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
+    </script>
+    <script src="app.js"></script>
+</body>
+</html>
