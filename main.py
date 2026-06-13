@@ -26,7 +26,7 @@ app.add_middleware(
 
 # --- Pydantic Schemas ---
 class ProviderConfig(BaseModel):
-    provider: str        # 'gemini', 'openrouter', 'groq', 'ollama', 'openai', 'nvidia', 'opencode'
+    provider: str        # 'gemini', 'openrouter', 'groq', 'ollama', 'openai', 'nvidia', 'opencode', 'cloudflare'
     api_key: str = ""
     model: str = ""      # e.g., 'gemini-1.5-flash', 'meta-llama/llama-3-8b-instruct:free'
     endpoint: str = ""   # e.g., 'http://localhost:11434/v1/chat/completions'
@@ -34,6 +34,9 @@ class ProviderConfig(BaseModel):
 class ProcessRequest(BaseModel):
     youtube_url: str
     config: ProviderConfig | None = None
+    language: str = "English"  # Output language for AI-generated content
+    youtube_proxy: str | None = None
+    youtube_cookies: str | None = None
 
 class ChatMessage(BaseModel):
     role: str  # 'user' or 'model' (client mapped)
@@ -45,6 +48,7 @@ class ChatRequest(BaseModel):
     question: str
     history: list[ChatMessage]
     config: ProviderConfig | None = None
+    language: str = "English"  # Output language for AI-generated content
 
 
 # --- Core Helper Functions ---
@@ -89,6 +93,10 @@ def resolve_config(config: ProviderConfig | None, request_headers: dict) -> Prov
             api_key = os.environ.get("OPENAI_API_KEY", "")
         elif provider == "opencode":
             api_key = os.environ.get("OPENCODE_API_KEY", "") or "opencode"
+        elif provider == "cloudflare":
+            api_key = os.environ.get("CLOUDFLARE_API_TOKEN", "")
+            if not endpoint:
+                endpoint = os.environ.get("CLOUDFLARE_ACCOUNT_ID", "")
             
     return ProviderConfig(
         provider=provider,
@@ -111,10 +119,44 @@ def extract_video_id(url: str) -> str:
         
     raise ValueError("Invalid YouTube URL. Please provide a valid YouTube link.")
 
-def get_video_transcript(video_id: str) -> tuple[list, str]:
+def get_video_transcript(video_id: str, cookies_content: str = None, proxy_url: str = None) -> tuple[list, str]:
     """Retrieve subtitles from YouTube, falling back to auto-generated if manual isn't available."""
+    import tempfile
+    import os
+    import requests
+    from http.cookiejar import MozillaCookieJar
+    
+    temp_cookie_path = None
+    session = None
+    
     try:
-        api = YouTubeTranscriptApi()
+        if cookies_content or proxy_url:
+            session = requests.Session()
+            if proxy_url:
+                session.proxies = {
+                    "http": proxy_url.strip(),
+                    "https": proxy_url.strip()
+                }
+            if cookies_content:
+                fd, temp_cookie_path = tempfile.mkstemp(suffix=".txt", prefix="cookies_")
+                try:
+                    with os.fdopen(fd, 'w', encoding='utf-8') as f:
+                        f.write(cookies_content)
+                    cj = MozillaCookieJar(temp_cookie_path)
+                    cj.load(ignore_discard=True, ignore_expires=True)
+                    session.cookies = cj
+                except Exception as e:
+                    if temp_cookie_path and os.path.exists(temp_cookie_path):
+                        try:
+                            os.remove(temp_cookie_path)
+                        except Exception:
+                            pass
+                        temp_cookie_path = None
+                    raise ValueError(f"Invalid cookies.txt content format. Verify it is standard Netscape format. Details: {str(e)}")
+            api = YouTubeTranscriptApi(http_client=session)
+        else:
+            api = YouTubeTranscriptApi()
+            
         transcript_list = api.list(video_id)
         # Try fetching manual English transcript, then auto-generated English, then any first available
         try:
@@ -143,6 +185,12 @@ def get_video_transcript(video_id: str) -> tuple[list, str]:
             status_code=400,
             detail=f"Could not retrieve transcript. Subtitles may be disabled or unavailable for this video. Details: {str(e)}"
         )
+    finally:
+        if temp_cookie_path and os.path.exists(temp_cookie_path):
+            try:
+                os.remove(temp_cookie_path)
+            except Exception:
+                pass
 
 def create_time_chunks(transcript_data: list, chunk_size_sec: float = 90.0) -> list:
     """Group individual transcript lines into logical chunks with start and end times."""
@@ -253,11 +301,17 @@ def call_llm_api(
         except Exception as e:
             raise RuntimeError(f"OpenCode API call failed: {str(e)}")
             
-    # 2. OpenAI Compatible APIs (OpenRouter, Groq, OpenAI, Ollama)
+    # 2. OpenAI Compatible APIs (OpenRouter, Groq, OpenAI, Ollama, Cloudflare)
     else:
         # Resolve Endpoints
         endpoint = config.endpoint.strip()
-        if not endpoint:
+        if provider == "cloudflare":
+            # endpoint field holds the Cloudflare Account ID
+            account_id = endpoint or os.environ.get("CLOUDFLARE_ACCOUNT_ID", "")
+            if not account_id:
+                raise ValueError("Cloudflare Account ID is missing. Please enter it in the Endpoint / Account ID field.")
+            endpoint = f"https://api.cloudflare.com/client/v4/accounts/{account_id}/ai/v1/chat/completions"
+        elif not endpoint:
             if provider == "openrouter":
                 endpoint = "https://openrouter.ai/api/v1/chat/completions"
             elif provider == "groq":
@@ -282,8 +336,10 @@ def call_llm_api(
                 api_key = os.environ.get("OPENAI_API_KEY", "")
             elif provider == "nvidia":
                 api_key = os.environ.get("NVIDIA_API_KEY", "")
+            elif provider == "cloudflare":
+                api_key = os.environ.get("CLOUDFLARE_API_TOKEN", "")
                 
-        if not api_key and provider != "ollama":
+        if not api_key and provider not in ("ollama",):
             raise ValueError(f"API Key is missing for {config.provider.capitalize()}. Please configure it.")
             
         # Resolve Model Names
@@ -299,6 +355,8 @@ def call_llm_api(
                 model_name = "llama3"
             elif provider == "nvidia":
                 model_name = "moonshotai/kimi-k2.6"
+            elif provider == "cloudflare":
+                model_name = "@cf/meta/llama-3.1-8b-instruct"
                 
         # Format OpenAI message payloads
         messages = [{"role": "system", "content": system_prompt}]
@@ -323,7 +381,7 @@ def call_llm_api(
             payload["temperature"] = 1.00
             payload["top_p"] = 1.00
             
-        if json_response and provider in ["openai", "groq", "openrouter", "nvidia"]:
+        if json_response and provider in ["openai", "groq", "openrouter", "nvidia", "cloudflare"]:
             payload["response_format"] = {"type": "json_object"}
             
         try:
@@ -361,7 +419,11 @@ async def process_video(request: ProcessRequest, http_request: Request):
     actual_title = get_youtube_video_title(video_id)
         
     # Get subtitles and full text
-    transcript_data, full_text = get_video_transcript(video_id)
+    transcript_data, full_text = get_video_transcript(
+        video_id,
+        cookies_content=request.youtube_cookies,
+        proxy_url=request.youtube_proxy
+    )
     
     # Chunk transcript
     chunks = create_time_chunks(transcript_data)
@@ -370,33 +432,39 @@ async def process_video(request: ProcessRequest, http_request: Request):
     resolved_config = resolve_config(request.config, dict(http_request.headers))
     
     # AI summary generation
+    output_language = request.language.strip() if request.language else "English"
     try:
-        system_prompt = "You are an expert video analyst. Analyze the transcript and generate a comprehensive summary in JSON format. You MUST write all output text, titles, summaries, takeaways, chapters, and descriptions strictly in English. If the transcript or video is in a language other than English (such as Hindi), translate all content and return the final JSON summary in English only."
+        system_prompt = f"""You are an expert video analyst. Analyze the transcript and generate a comprehensive summary in JSON format.
+You MUST write ALL output text — including the title, executive_summary, key_takeaways, chapter titles, chapter summaries, and the mindmap — ENTIRELY in {output_language}.
+Do NOT mix languages. Every single word in the JSON values must be in {output_language}.
+The transcript may be in a different language; translate and re-express all content in {output_language}."""
         user_prompt = f"""
 Analyze the following YouTube video transcript and generate a structured JSON summary.
 Identify the main topics and divide the video into logical chapters with summaries and timestamps (start_time in seconds).
 Also generate an interactive hierarchical markdown mindmap string representing the key concepts and flow of the video.
+
+IMPORTANT: Write every single value in the JSON in {output_language} only.
 
 Here is the transcript:
 {full_text}
 
 JSON Output Schema:
 {{
-  "title": "A highly descriptive and interesting title for the video summary",
-  "executive_summary": "A detailed 3-4 sentence paragraph summarizing the overall topic, context, and key conclusions of the video.",
+  "title": "A highly descriptive and interesting title for the video summary (in {output_language})",
+  "executive_summary": "A detailed 3-4 sentence paragraph summarizing the overall topic, context, and key conclusions (in {output_language}).",
   "key_takeaways": [
-    "Key lesson or fact 1 from the video (include relevant numbers/names)",
-    "Key lesson or fact 2 from the video",
-    "Key lesson or fact 3 from the video (add more if appropriate)"
+    "Key lesson or fact 1 from the video (in {output_language})",
+    "Key lesson or fact 2 from the video (in {output_language})",
+    "Key lesson or fact 3 (in {output_language}, add more if appropriate)"
   ],
   "chapters": [
     {{
-      "title": "Chapter Title",
-      "summary": "Clear summary of this chapter section.",
+      "title": "Chapter Title (in {output_language})",
+      "summary": "Clear summary of this chapter section (in {output_language}).",
       "start_time": 0.0
     }}
   ],
-  "mindmap": "# Video Title\\n## Branch 1 (Main Topic)\\n- Subtopic A\\n  - Details\\n- Subtopic B\\n## Branch 2\\n- Subtopic C"
+  "mindmap": "# Video Title\\n## Branch 1\\n- Subtopic A\\n  - Details\\n- Subtopic B\\n## Branch 2\\n- Subtopic C (all in {output_language})"
 }}
 
 Provide ONLY raw JSON output. Do not include markdown formatting or ```json codeblock wrappers.
@@ -442,10 +510,12 @@ async def chat_with_video(request: ChatRequest, http_request: Request):
         # Resolve API Config
         resolved_config = resolve_config(request.config, dict(http_request.headers))
         
-        system_prompt = f"""You are an expert AI assistant answering questions about a specific YouTube video. 
+        chat_language = request.language.strip() if request.language else "English"
+        system_prompt = f"""You are an expert AI assistant answering questions about a specific YouTube video.
 Your answers must be strictly grounded in the provided transcript context. If the information is not in the transcript, state that clearly.
 Do not hallucinate or use external knowledge. Formulate your response in Markdown, referencing timestamps if helpful.
-You MUST write all responses strictly in English. If the transcript or question is in Hindi or any other language, translate the context and reply strictly in English.
+You MUST write ALL your responses entirely in {chat_language}. Do not use any other language — not even for a single word.
+If the user's question is in a different language, still answer in {chat_language}.
 
 Transcript:
 {request.transcript}"""

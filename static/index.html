@@ -42,9 +42,6 @@
             </div>
 
             <div class="header-actions">
-                <button id="theme-toggle-btn" class="icon-btn" title="Toggle Light/Dark Mode">
-                    <i data-lucide="moon" id="theme-icon"></i>
-                </button>
                 <button id="settings-btn" class="icon-btn" title="API Settings">
                     <i data-lucide="settings"></i>
                 </button>
@@ -201,12 +198,12 @@
                                         <h3>Personal Notes</h3>
                                     </div>
                                     <div class="notes-actions">
+                                        <button id="clear-notes-btn" class="icon-btn danger-btn" title="Clear All Notes">
+                                            <i data-lucide="trash-2"></i>
+                                        </button>
                                         <button id="download-pdf-btn" class="glow-btn notes-btn" title="Download Notes as PDF">
                                             <i data-lucide="download"></i>
                                             <span>Download PDF</span>
-                                        </button>
-                                        <button id="clear-notes-btn" class="icon-btn danger-btn" title="Clear All Notes">
-                                            <i data-lucide="trash-2"></i>
                                         </button>
                                     </div>
                                 </div>
@@ -252,6 +249,7 @@
                         <option value="groq">Groq (llama3-8b)</option>
                         <option value="openrouter">OpenRouter</option>
                         <option value="ollama">Ollama (Local)</option>
+                        <option value="cloudflare">Cloudflare Workers AI</option>
                         <option value="opencode">OpenCode (Local)</option>
                     </select>
                 </div>
@@ -274,12 +272,47 @@
                 </div>
 
                 <div class="form-group" id="endpoint-group">
-                    <label for="endpoint-input">Endpoint URL (Optional)</label>
+                    <label for="endpoint-input" id="endpoint-label">Endpoint URL (Optional)</label>
                     <div class="input-with-action">
                         <input type="text" id="endpoint-input" placeholder="Default endpoint will be used if blank">
                     </div>
                 </div>
                 
+                <div class="form-group">
+                    <label for="language-select">Output Language</label>
+                    <select id="language-select" class="settings-select">
+                        <option value="English">English</option>
+                        <option value="Hindi">Hindi</option>
+                        <option value="Spanish">Spanish</option>
+                        <option value="French">French</option>
+                        <option value="German">German</option>
+                        <option value="Portuguese">Portuguese</option>
+                        <option value="Arabic">Arabic</option>
+                        <option value="Chinese">Chinese</option>
+                        <option value="Japanese">Japanese</option>
+                    </select>
+                </div>
+
+                <div class="settings-divider">
+                    <span>YouTube Scraper Settings (Bypass Blocks)</span>
+                </div>
+
+                <div class="form-group">
+                    <label for="youtube-proxy-input">YouTube Proxy URL (Optional)</label>
+                    <div class="input-with-action">
+                        <input type="text" id="youtube-proxy-input" placeholder="e.g. http://username:password@proxy-domain:port">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="youtube-cookies-input">YouTube Cookies (Netscape format) (Optional)</label>
+                    <textarea id="youtube-cookies-input" placeholder="# Netscape HTTP Cookie File&#10;Paste your cookies.txt content here..." class="settings-textarea" rows="4"></textarea>
+                    <div class="helper-text font-small">
+                        <i data-lucide="info"></i>
+                        <span>Export your cookies using browser extensions like <strong>Get cookies.txt LOCALLY</strong> and paste them here to bypass YouTube IP blocks.</span>
+                    </div>
+                </div>
+
                 <div class="key-status" id="key-status-msg">
                     <!-- Dynamic validation check status -->
                 </div>

@@ -15,9 +15,6 @@ const youtubeUrlInput = document.getElementById('youtube-url');
 const processForm = document.getElementById('process-form');
 const submitBtn = document.getElementById('submit-btn');
 const settingsBtn = document.getElementById('settings-btn');
-const themeToggleBtn = document.getElementById('theme-toggle-btn');
-const themeIcon = document.getElementById('theme-icon');
-
 const loadingOverlay = document.getElementById('loading-overlay');
 const loadingStepText = document.getElementById('loading-step');
 
@@ -78,7 +75,9 @@ const endpointInput = document.getElementById('endpoint-input');
 const helperTextSpan = document.getElementById('helper-text-span');
 const modelGroup = document.getElementById('model-group');
 const endpointGroup = document.getElementById('endpoint-group');
-const apiKeyGroup = document.getElementById('api-key-group');
+const endpointLabel = document.getElementById('endpoint-label');
+const youtubeProxyInput = document.getElementById('youtube-proxy-input');
+const youtubeCookiesInput = document.getElementById('youtube-cookies-input');
 
 // --- YouTube Player Lifecycle API ---
 window.onYouTubeIframeAPIReady = function() {
@@ -246,6 +245,12 @@ function updateModalFields(provider) {
         showModel = true;
         showEndpoint = true;
         helperHtml = `Ensure OpenCode is running locally. Learn more at <a href="https://opencode.ai/" target="_blank">OpenCode</a>. Try running: <code>opencode serve --port 4096</code>.`;
+    } else if (provider === 'cloudflare') {
+        keyLabel = 'Cloudflare API Token';
+        keyPlaceholder = 'Enter Cloudflare API Token...';
+        helperHtml = `Get your API Token at <a href="https://dash.cloudflare.com/profile/api-tokens" target="_blank">Cloudflare API Tokens</a>. Enable <strong>Workers AI</strong> permissions.`;
+        showModel = true;
+        showEndpoint = true;
     }
     
     apiKeyLabel.textContent = keyLabel;
@@ -261,12 +266,27 @@ function updateModalFields(provider) {
     if (showEndpoint) endpointGroup.classList.remove('hidden');
     else endpointGroup.classList.add('hidden');
     
+    // Dynamically relabel the endpoint field for Cloudflare
+    if (endpointLabel) {
+        endpointLabel.textContent = provider === 'cloudflare' ? 'Account ID' : 'Endpoint URL (Optional)';
+    }
+    if (endpointInput) {
+        endpointInput.placeholder = provider === 'cloudflare' ? 'Enter your Cloudflare Account ID...' : 'Default endpoint will be used if blank';
+    }
+    
     apiKeyInput.value = localStorage.getItem(`api_key_${provider}`) || '';
     modelInput.value = localStorage.getItem(`api_model_${provider}`) || '';
     endpointInput.value = localStorage.getItem(`api_endpoint_${provider}`) || '';
     
     if (provider === 'gemini' && !apiKeyInput.value) {
         apiKeyInput.value = localStorage.getItem('gemini_api_key') || '';
+    }
+    
+    if (youtubeProxyInput) {
+        youtubeProxyInput.value = localStorage.getItem('youtube_proxy') || '';
+    }
+    if (youtubeCookiesInput) {
+        youtubeCookiesInput.value = localStorage.getItem('youtube_cookies') || '';
     }
 }
 
@@ -297,6 +317,13 @@ settingsSave.addEventListener('click', () => {
         localStorage.setItem('gemini_api_key', key);
     }
     
+    if (youtubeProxyInput) {
+        localStorage.setItem('youtube_proxy', youtubeProxyInput.value.trim());
+    }
+    if (youtubeCookiesInput) {
+        localStorage.setItem('youtube_cookies', youtubeCookiesInput.value.trim());
+    }
+    
     state.provider = provider;
     state.apiKey = key;
     closeSettingsModal();
@@ -304,15 +331,7 @@ settingsSave.addEventListener('click', () => {
 
 // Auto-open settings if key is missing on first load
 window.addEventListener('DOMContentLoaded', () => {
-    // Apply saved theme first so icon renders correctly
-    const savedTheme = localStorage.getItem('site_theme') || 'dark';
-    document.documentElement.setAttribute('data-theme', savedTheme);
-    if (themeIcon) {
-        themeIcon.setAttribute('data-lucide', savedTheme === 'light' ? 'sun' : 'moon');
-    }
-
     lucide.createIcons();
-
 
     // Pre-configure OpenCode endpoint if not already set (for public visitors)
     if (!localStorage.getItem('api_endpoint_opencode')) {
@@ -349,24 +368,6 @@ settingsCancel.addEventListener('click', closeSettingsModal);
 settingsModal.addEventListener('click', (e) => {
     if (e.target === settingsModal) closeSettingsModal();
 });
-
-// ── Dark / Light Mode Toggle ──────────────────────────────
-function applyTheme(theme) {
-    document.documentElement.setAttribute('data-theme', theme);
-    localStorage.setItem('site_theme', theme);
-    if (themeIcon) {
-        // Swap the icon attribute and re-render just that element
-        themeIcon.setAttribute('data-lucide', theme === 'light' ? 'sun' : 'moon');
-        lucide.createIcons();
-    }
-}
-
-if (themeToggleBtn) {
-    themeToggleBtn.addEventListener('click', () => {
-        const current = localStorage.getItem('site_theme') || 'dark';
-        applyTheme(current === 'dark' ? 'light' : 'dark');
-    });
-}
 
 function getProviderConfig() {
     const provider = state.provider;
@@ -409,12 +410,18 @@ processForm.addEventListener('submit', async (e) => {
     try {
         // Step 1: Request backend processing
         loadingStepText.textContent = "Fetching transcripts and compiling notes...";
+        
+        const youtubeProxy = localStorage.getItem('youtube_proxy') || '';
+        const youtubeCookies = localStorage.getItem('youtube_cookies') || '';
+        
         const response = await fetch('/api/process', {
             method: 'POST',
             headers: getHeaders(),
             body: JSON.stringify({ 
                 youtube_url: url,
-                config: config
+                config: config,
+                youtube_proxy: youtubeProxy || null,
+                youtube_cookies: youtubeCookies || null
             })
         });
 
