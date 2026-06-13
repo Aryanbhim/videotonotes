@@ -76,6 +76,7 @@ const helperTextSpan = document.getElementById('helper-text-span');
 const modelGroup = document.getElementById('model-group');
 const endpointGroup = document.getElementById('endpoint-group');
 const endpointLabel = document.getElementById('endpoint-label');
+const apiKeyGroup = document.getElementById('api-key-group');
 const youtubeProxyInput = document.getElementById('youtube-proxy-input');
 const youtubeCookiesInput = document.getElementById('youtube-cookies-input');
 
