@@ -7,7 +7,6 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from youtube_transcript_api import YouTubeTranscriptApi
-from google import genai
 from dotenv import load_dotenv
 
 # Load server-side .env file if present
@@ -16,12 +15,12 @@ load_dotenv()
 # Debug: Log which environment variables are set at startup
 _proxy = os.environ.get("YOUTUBE_PROXY", "")
 _cookies = os.environ.get("YOUTUBE_COOKIES", "")
-_gemini = os.environ.get("GEMINI_API_KEY", "")
+_nvidia = os.environ.get("NVIDIA_API_KEY", "")
 _ws_user = os.environ.get("WEBSHARE_USERNAME", "")
 _ws_pass = os.environ.get("WEBSHARE_PASSWORD", "")
 print(f"STARTUP ENV: YOUTUBE_PROXY={'SET ('+str(len(_proxy))+' chars)' if _proxy else 'NOT SET'}")
 print(f"STARTUP ENV: YOUTUBE_COOKIES={'SET ('+str(len(_cookies))+' chars)' if _cookies else 'NOT SET'}")
-print(f"STARTUP ENV: GEMINI_API_KEY={'SET ('+str(len(_gemini))+' chars)' if _gemini else 'NOT SET'}")
+print(f"STARTUP ENV: NVIDIA_API_KEY={'SET ('+str(len(_nvidia))+' chars)' if _nvidia else 'NOT SET'}")
 print(f"STARTUP ENV: WEBSHARE_USERNAME={'SET ('+str(len(_ws_user))+' chars)' if _ws_user else 'NOT SET'}")
 print(f"STARTUP ENV: WEBSHARE_PASSWORD={'SET' if _ws_pass else 'NOT SET'}")
 app = FastAPI(title="VideoToNotes API", description="AI-powered YouTube transcription and Q&A (Multi-Provider)")
@@ -69,9 +68,9 @@ def resolve_config(config: ProviderConfig | None, request_headers: dict) -> Prov
         api_key = config.api_key.strip() if config.api_key else ""
         
     # Check custom headers if config values are empty
-    gemini_key_header = request_headers.get("x-gemini-key")
-    if gemini_key_header and not api_key:
-        api_key = gemini_key_header.strip()
+    nvidia_key_header = request_headers.get("x-nvidia-key")
+    if nvidia_key_header and not api_key:
+        api_key = nvidia_key_header.strip()
         
     api_key_header = request_headers.get("x-api-key")
     if api_key_header and not api_key:
@@ -79,7 +78,7 @@ def resolve_config(config: ProviderConfig | None, request_headers: dict) -> Prov
         
     # If API key is still empty, resolve from environment variables
     if not api_key:
-        api_key = os.environ.get("GEMINI_API_KEY", "").strip()
+        api_key = os.environ.get("NVIDIA_API_KEY", "").strip()
         
     obfuscated_key = api_key[:6] + "..." + api_key[-4:] if len(api_key) > 10 else f"invalid/empty (len={len(api_key)})"
     print(f"DEBUG resolve_config: key length={len(api_key)}, starts/ends={obfuscated_key}")
@@ -248,31 +247,51 @@ def call_llm_api(
     chat_history: list[ChatMessage] = None,
     json_response: bool = False
 ) -> str:
-    """Call Google Gemini API using the new google-genai SDK."""
-    api_key = config.api_key or os.environ.get("GEMINI_API_KEY")
+    """Call NVIDIA API Catalog using standard requests library (OpenAI compatible)."""
+    api_key = config.api_key or os.environ.get("NVIDIA_API_KEY")
     if not api_key:
-        raise ValueError("Gemini API Key is missing. Please provide it in the settings panel.")
+        raise ValueError("NVIDIA API Key is missing. Please provide it in the settings panel.")
         
-    client = genai.Client(api_key=api_key)
+    url = "https://integrate.api.nvidia.com/v1/chat/completions"
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type": "application/json"
+    }
     
-    # Build the prompt with system instructions and chat history
-    full_prompt = f"{system_prompt}\n\n"
+    messages = []
+    messages.append({"role": "system", "content": system_prompt})
+    
     if chat_history:
         for msg in chat_history:
-            role = "User" if msg.role == "user" else "Assistant"
-            full_prompt += f"{role}: {msg.text}\n"
-    full_prompt += f"User: {user_prompt}\nAssistant:"
+            # Map role to assistant if model
+            role = "assistant" if msg.role == "model" else msg.role
+            messages.append({"role": role, "content": msg.text})
+            
+    messages.append({"role": "user", "content": user_prompt})
     
-    config_kwargs = {}
+    payload = {
+        "model": "meta/llama-3.1-70b-instruct",
+        "messages": messages,
+        "temperature": 0.2,
+        "max_tokens": 1024,
+    }
+    
     if json_response:
-        config_kwargs["response_mime_type"] = "application/json"
-    
-    response = client.models.generate_content(
-        model="gemini-2.0-flash",
-        contents=full_prompt,
-        config=config_kwargs if config_kwargs else None
-    )
-    return response.text
+        payload["response_format"] = {"type": "json_object"}
+        
+    try:
+        response = requests.post(url, headers=headers, json=payload, timeout=60)
+        response.raise_for_status()
+        data = response.json()
+        return data["choices"][0]["message"]["content"]
+    except Exception as e:
+        err_msg = str(e)
+        if hasattr(e, 'response') and e.response is not None:
+            try:
+                err_msg += f" (Status: {e.response.status_code}, Body: {e.response.text})"
+            except Exception:
+                pass
+        raise RuntimeError(f"NVIDIA API request failed: {err_msg}")
 
 
 def get_youtube_video_title(video_id: str) -> str:
@@ -377,8 +396,8 @@ Provide ONLY raw JSON output. Do not include markdown formatting or ```json code
             "title": actual_title,
             "executive_summary": f"We successfully retrieved the video details, but were unable to compile the AI summary using your API settings. Error: {str(e)}",
             "key_takeaways": [
-                "Could not load AI takeaways. Verify your API Key configuration, model choice, or connection status.",
-                "Verify local Ollama status if using Ollama."
+                "Could not load AI takeaways. Verify your NVIDIA API Key configuration or connection status.",
+                "Verify that your NVIDIA API key is active and correctly configured."
             ],
             "chapters": [],
             "mindmap": f"# Video Summary ({video_id})\\n## Error\\n- Could not compile AI Mindmap"

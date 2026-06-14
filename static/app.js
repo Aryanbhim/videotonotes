@@ -1,6 +1,6 @@
 // Application State
 const state = {
-    apiKey: localStorage.getItem('gemini_api_key') || '',
+    apiKey: localStorage.getItem('nvidia_api_key') || '',
     activeVideoId: localStorage.getItem('active_video_id') || '',
     videoData: localStorage.getItem('video_data') ? JSON.parse(localStorage.getItem('video_data')) : null,
     chatHistory: [],
@@ -178,7 +178,7 @@ tabButtons.forEach(btn => {
 // --- Modal and Settings API Key Handling ---
 // --- Modal and Settings API Key Handling ---
 function openSettingsModal() {
-    apiKeyInput.value = localStorage.getItem('gemini_api_key') || '';
+    apiKeyInput.value = localStorage.getItem('nvidia_api_key') || '';
     if (youtubeProxyInput) {
         youtubeProxyInput.value = localStorage.getItem('youtube_proxy') || '';
     }
@@ -205,7 +205,7 @@ toggleKeyVisibility.addEventListener('click', () => {
 settingsSave.addEventListener('click', () => {
     const key = apiKeyInput.value.trim();
     
-    localStorage.setItem('gemini_api_key', key);
+    localStorage.setItem('nvidia_api_key', key);
     
     if (youtubeProxyInput) {
         localStorage.setItem('youtube_proxy', youtubeProxyInput.value.trim());
@@ -261,7 +261,7 @@ settingsModal.addEventListener('click', (e) => {
 });
 
 function getProviderConfig() {
-    const key = localStorage.getItem('gemini_api_key') || '';
+    const key = localStorage.getItem('nvidia_api_key') || '';
     return {
         api_key: key
     };
@@ -272,7 +272,7 @@ function getHeaders() {
     const headers = { 'Content-Type': 'application/json' };
     const config = getProviderConfig();
     if (config.api_key) {
-        headers['X-Gemini-Key'] = config.api_key;
+        headers['X-Nvidia-Key'] = config.api_key;
         headers['X-API-Key'] = config.api_key;
     }
     return headers;
@@ -375,7 +375,7 @@ function renderVideoData(data) {
     if (summary.executive_summary && summary.executive_summary.includes("API Key is missing")) {
         setTimeout(() => {
             const openSettings = confirm(
-                "API Key is missing. To generate the AI summary and chat with the video, please provide your Gemini API Key in the settings panel.\n\nWould you like to open Settings now?"
+                "NVIDIA API Key is missing. To generate the AI summary and chat with the video, please provide your NVIDIA API Key in the settings panel.\n\nWould you like to open Settings now?"
             );
             if (openSettings) {
                 openSettingsModal();
