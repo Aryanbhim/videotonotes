@@ -7,7 +7,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from youtube_transcript_api import YouTubeTranscriptApi
-import google.generativeai as genai
+from google import genai
 from dotenv import load_dotenv
 
 # Load server-side .env file if present
@@ -60,15 +60,18 @@ def resolve_config(config: ProviderConfig | None, request_headers: dict) -> Prov
     # Check custom headers if config values are empty
     gemini_key_header = request_headers.get("x-gemini-key")
     if gemini_key_header and not api_key:
-        api_key = gemini_key_header
+        api_key = gemini_key_header.strip()
         
     api_key_header = request_headers.get("x-api-key")
     if api_key_header and not api_key:
-        api_key = api_key_header
+        api_key = api_key_header.strip()
         
     # If API key is still empty, resolve from environment variables
     if not api_key:
-        api_key = os.environ.get("GEMINI_API_KEY", "")
+        api_key = os.environ.get("GEMINI_API_KEY", "").strip()
+        
+    obfuscated_key = api_key[:6] + "..." + api_key[-4:] if len(api_key) > 10 else f"invalid/empty (len={len(api_key)})"
+    print(f"DEBUG resolve_config: key length={len(api_key)}, starts/ends={obfuscated_key}")
             
     return ProviderConfig(
         api_key=api_key
@@ -203,15 +206,14 @@ def call_llm_api(
     chat_history: list[ChatMessage] = None,
     json_response: bool = False
 ) -> str:
-    """Call Google Gemini API using native SDK."""
+    """Call Google Gemini API using the new google-genai SDK."""
     api_key = config.api_key or os.environ.get("GEMINI_API_KEY")
     if not api_key:
         raise ValueError("Gemini API Key is missing. Please provide it in the settings panel.")
         
-    genai.configure(api_key=api_key)
-    model = genai.GenerativeModel("gemini-1.5-flash")
+    client = genai.Client(api_key=api_key)
     
-    # Build standard system instructions prompt
+    # Build the prompt with system instructions and chat history
     full_prompt = f"{system_prompt}\n\n"
     if chat_history:
         for msg in chat_history:
@@ -219,11 +221,15 @@ def call_llm_api(
             full_prompt += f"{role}: {msg.text}\n"
     full_prompt += f"User: {user_prompt}\nAssistant:"
     
-    generation_cfg = {}
+    config_kwargs = {}
     if json_response:
-        generation_cfg["response_mime_type"] = "application/json"
-        
-    response = model.generate_content(full_prompt, generation_config=generation_cfg)
+        config_kwargs["response_mime_type"] = "application/json"
+    
+    response = client.models.generate_content(
+        model="gemini-2.0-flash",
+        contents=full_prompt,
+        config=config_kwargs if config_kwargs else None
+    )
     return response.text
 
 
