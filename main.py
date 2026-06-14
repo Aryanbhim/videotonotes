@@ -13,6 +13,14 @@ from dotenv import load_dotenv
 # Load server-side .env file if present
 load_dotenv()
 
+# Debug: Log which environment variables are set at startup
+_proxy = os.environ.get("YOUTUBE_PROXY", "")
+_cookies = os.environ.get("YOUTUBE_COOKIES", "")
+_gemini = os.environ.get("GEMINI_API_KEY", "")
+print(f"STARTUP ENV: YOUTUBE_PROXY={'SET ('+str(len(_proxy))+' chars)' if _proxy else 'NOT SET'}")
+print(f"STARTUP ENV: YOUTUBE_COOKIES={'SET ('+str(len(_cookies))+' chars)' if _cookies else 'NOT SET'}")
+print(f"STARTUP ENV: GEMINI_API_KEY={'SET ('+str(len(_gemini))+' chars)' if _gemini else 'NOT SET'}")
+
 app = FastAPI(title="VideoToNotes API", description="AI-powered YouTube transcription and Q&A (Multi-Provider)")
 
 # Enable CORS for frontend/backend decoupled local development
@@ -95,39 +103,56 @@ def get_video_transcript(video_id: str, cookies_content: str = None, proxy_url: 
     """Retrieve subtitles from YouTube, falling back to auto-generated if manual isn't available."""
     import tempfile
     import os
-    import requests
-    from http.cookiejar import MozillaCookieJar
+    from youtube_transcript_api.proxies import GenericProxyConfig
     
     temp_cookie_path = None
-    session = None
     
     try:
-        if cookies_content or proxy_url:
-            session = requests.Session()
-            if proxy_url:
-                session.proxies = {
-                    "http": proxy_url.strip(),
-                    "https": proxy_url.strip()
-                }
-            if cookies_content:
-                fd, temp_cookie_path = tempfile.mkstemp(suffix=".txt", prefix="cookies_")
-                try:
-                    with os.fdopen(fd, 'w', encoding='utf-8') as f:
-                        f.write(cookies_content)
-                    cj = MozillaCookieJar(temp_cookie_path)
-                    cj.load(ignore_discard=True, ignore_expires=True)
-                    session.cookies = cj
-                except Exception as e:
-                    if temp_cookie_path and os.path.exists(temp_cookie_path):
-                        try:
-                            os.remove(temp_cookie_path)
-                        except Exception:
-                            pass
-                        temp_cookie_path = None
-                    raise ValueError(f"Invalid cookies.txt content format. Verify it is standard Netscape format. Details: {str(e)}")
-            api = YouTubeTranscriptApi(http_client=session)
-        else:
-            api = YouTubeTranscriptApi()
+        # Build proxy config using the library's built-in support
+        proxy_config = None
+        if proxy_url:
+            cleaned_proxy = proxy_url.strip()
+            proxy_config = GenericProxyConfig(
+                http_url=cleaned_proxy,
+                https_url=cleaned_proxy,
+            )
+            print(f"DEBUG proxy: Using proxy {cleaned_proxy[:30]}...")
+        
+        # Build cookie path if cookies content provided
+        http_client = None
+        if cookies_content:
+            from http.cookiejar import MozillaCookieJar
+            import requests as req
+            fd, temp_cookie_path = tempfile.mkstemp(suffix=".txt", prefix="cookies_")
+            try:
+                with os.fdopen(fd, 'w', encoding='utf-8') as f:
+                    f.write(cookies_content)
+                cj = MozillaCookieJar(temp_cookie_path)
+                cj.load(ignore_discard=True, ignore_expires=True)
+                http_client = req.Session()
+                http_client.cookies = cj
+                if proxy_url:
+                    cleaned = proxy_url.strip()
+                    http_client.proxies = {"http": cleaned, "https": cleaned}
+            except Exception as e:
+                if temp_cookie_path and os.path.exists(temp_cookie_path):
+                    try:
+                        os.remove(temp_cookie_path)
+                    except Exception:
+                        pass
+                    temp_cookie_path = None
+                raise ValueError(f"Invalid cookies.txt content format. Details: {str(e)}")
+        
+        # Initialize API with proxy and/or cookies
+        api_kwargs = {}
+        if proxy_config and not http_client:
+            # Only use proxy_config if we don't have an http_client
+            # (if we have an http_client, proxy is already set on it)
+            api_kwargs["proxy_config"] = proxy_config
+        if http_client:
+            api_kwargs["http_client"] = http_client
+
+        api = YouTubeTranscriptApi(**api_kwargs)
             
         transcript_list = api.list(video_id)
         # Try fetching manual English transcript, then auto-generated English, then any first available
@@ -152,6 +177,8 @@ def get_video_transcript(video_id: str, cookies_content: str = None, proxy_url: 
             
         full_text = " ".join([entry['text'].replace('\n', ' ') for entry in dict_data])
         return dict_data, full_text
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(
             status_code=400,
