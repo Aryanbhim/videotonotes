@@ -17,10 +17,13 @@ load_dotenv()
 _proxy = os.environ.get("YOUTUBE_PROXY", "")
 _cookies = os.environ.get("YOUTUBE_COOKIES", "")
 _gemini = os.environ.get("GEMINI_API_KEY", "")
+_ws_user = os.environ.get("WEBSHARE_USERNAME", "")
+_ws_pass = os.environ.get("WEBSHARE_PASSWORD", "")
 print(f"STARTUP ENV: YOUTUBE_PROXY={'SET ('+str(len(_proxy))+' chars)' if _proxy else 'NOT SET'}")
 print(f"STARTUP ENV: YOUTUBE_COOKIES={'SET ('+str(len(_cookies))+' chars)' if _cookies else 'NOT SET'}")
 print(f"STARTUP ENV: GEMINI_API_KEY={'SET ('+str(len(_gemini))+' chars)' if _gemini else 'NOT SET'}")
-
+print(f"STARTUP ENV: WEBSHARE_USERNAME={'SET ('+str(len(_ws_user))+' chars)' if _ws_user else 'NOT SET'}")
+print(f"STARTUP ENV: WEBSHARE_PASSWORD={'SET' if _ws_pass else 'NOT SET'}")
 app = FastAPI(title="VideoToNotes API", description="AI-powered YouTube transcription and Q&A (Multi-Provider)")
 
 # Enable CORS for frontend/backend decoupled local development
@@ -103,20 +106,34 @@ def get_video_transcript(video_id: str, cookies_content: str = None, proxy_url: 
     """Retrieve subtitles from YouTube, falling back to auto-generated if manual isn't available."""
     import tempfile
     import os
-    from youtube_transcript_api.proxies import GenericProxyConfig
+    from youtube_transcript_api.proxies import GenericProxyConfig, WebshareProxyConfig
     
     temp_cookie_path = None
     
     try:
         # Build proxy config using the library's built-in support
         proxy_config = None
-        if proxy_url:
+        
+        # Priority 1: Webshare Residential proxies (rotating 30M+ IPs — most reliable)
+        ws_user = os.environ.get("WEBSHARE_USERNAME", "").strip()
+        ws_pass = os.environ.get("WEBSHARE_PASSWORD", "").strip()
+        if ws_user and ws_pass:
+            proxy_config = WebshareProxyConfig(
+                proxy_username=ws_user,
+                proxy_password=ws_pass,
+                retries_when_blocked=10,
+            )
+            print(f"DEBUG proxy: Using Webshare Residential (user={ws_user[:4]}...)")
+        # Priority 2: Generic proxy URL (datacenter, may get blocked)
+        elif proxy_url:
             cleaned_proxy = proxy_url.strip()
             proxy_config = GenericProxyConfig(
                 http_url=cleaned_proxy,
                 https_url=cleaned_proxy,
             )
-            print(f"DEBUG proxy: Using proxy {cleaned_proxy[:30]}...")
+            print(f"DEBUG proxy: Using generic proxy {cleaned_proxy[:30]}...")
+        else:
+            print("DEBUG proxy: No proxy configured — YouTube may block cloud IPs!")
         
         # Build cookie path if cookies content provided
         http_client = None
@@ -146,8 +163,6 @@ def get_video_transcript(video_id: str, cookies_content: str = None, proxy_url: 
         # Initialize API with proxy and/or cookies
         api_kwargs = {}
         if proxy_config and not http_client:
-            # Only use proxy_config if we don't have an http_client
-            # (if we have an http_client, proxy is already set on it)
             api_kwargs["proxy_config"] = proxy_config
         if http_client:
             api_kwargs["http_client"] = http_client

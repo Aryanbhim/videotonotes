@@ -11,3 +11,7 @@ services:
         sync: false
       - key: YOUTUBE_COOKIES
         sync: false
+      - key: WEBSHARE_USERNAME
+        sync: false
+      - key: WEBSHARE_PASSWORD
+        sync: false
