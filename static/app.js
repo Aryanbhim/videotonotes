@@ -483,6 +483,18 @@ function renderVideoData(data) {
     summaryVideoTitle.textContent = summary.title || "Video Analysis";
     summaryExecText.textContent = summary.executive_summary || "No executive summary generated.";
     
+    // Prompt to open settings if API key is missing
+    if (summary.executive_summary && summary.executive_summary.includes("API Key is missing")) {
+        setTimeout(() => {
+            const openSettings = confirm(
+                "API Key is missing. To generate the AI summary and chat with the video, please provide your Gemini API Key in the settings panel.\n\nWould you like to open Settings now?"
+            );
+            if (openSettings) {
+                openSettingsModal();
+            }
+        }, 500);
+    }
+    
     // Chapters
     chaptersTimeline.innerHTML = '';
     if (summary.chapters && summary.chapters.length > 0) {
