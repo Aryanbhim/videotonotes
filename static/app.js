@@ -1,7 +1,7 @@
 // Application State
 const state = {
-    provider: localStorage.getItem('api_provider') || 'opencode',
-    apiKey: localStorage.getItem(`api_key_${localStorage.getItem('api_provider') || 'opencode'}`) || '',
+    provider: localStorage.getItem('api_provider') || 'gemini',
+    apiKey: localStorage.getItem(`api_key_${localStorage.getItem('api_provider') || 'gemini'}`) || '',
     activeVideoId: localStorage.getItem('active_video_id') || '',
     videoData: localStorage.getItem('video_data') ? JSON.parse(localStorage.getItem('video_data')) : null,
     chatHistory: [],
@@ -339,13 +339,7 @@ window.addEventListener('DOMContentLoaded', () => {
         localStorage.setItem('api_endpoint_opencode', 'http://127.0.0.1:4096');
     }
     if (!localStorage.getItem('api_provider')) {
-        localStorage.setItem('api_provider', 'opencode');
-    }
-
-    const activeProvider = state.provider;
-    const key = localStorage.getItem(`api_key_${activeProvider}`) || localStorage.getItem('gemini_api_key');
-    if (!key && activeProvider !== 'ollama' && activeProvider !== 'opencode') {
-        setTimeout(openSettingsModal, 1000);
+        localStorage.setItem('api_provider', 'gemini');
     }
     
     // Load persisted notes

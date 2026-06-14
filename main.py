@@ -418,11 +418,15 @@ async def process_video(request: ProcessRequest, http_request: Request):
     # Fetch actual YouTube video title
     actual_title = get_youtube_video_title(video_id)
         
+    # Resolve cookies and proxy (use client inputs first, fall back to server-side environment variables)
+    cookies_content = request.youtube_cookies or os.environ.get("YOUTUBE_COOKIES")
+    proxy_url = request.youtube_proxy or os.environ.get("YOUTUBE_PROXY")
+
     # Get subtitles and full text
     transcript_data, full_text = get_video_transcript(
         video_id,
-        cookies_content=request.youtube_cookies,
-        proxy_url=request.youtube_proxy
+        cookies_content=cookies_content,
+        proxy_url=proxy_url
     )
     
     # Chunk transcript
