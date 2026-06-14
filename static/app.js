@@ -1,6 +1,6 @@
 // Application State
 const state = {
-    apiKey: localStorage.getItem('nvidia_api_key') || '',
+    endpoint: localStorage.getItem('opencode_endpoint') || 'http://127.0.0.1:4096',
     activeVideoId: localStorage.getItem('active_video_id') || '',
     videoData: localStorage.getItem('video_data') ? JSON.parse(localStorage.getItem('video_data')) : null,
     chatHistory: [],
@@ -60,8 +60,7 @@ const suggestionsList = document.getElementById('suggestions-list');
 
 // Settings Modal
 const settingsModal = document.getElementById('settings-modal');
-const apiKeyInput = document.getElementById('api-key-input');
-const toggleKeyVisibility = document.getElementById('toggle-key-visibility');
+const endpointInput = document.getElementById('endpoint-input');
 const keyStatusMsg = document.getElementById('key-status-msg');
 const settingsSave = document.getElementById('settings-save');
 const settingsCancel = document.getElementById('settings-cancel');
@@ -178,7 +177,7 @@ tabButtons.forEach(btn => {
 // --- Modal and Settings API Key Handling ---
 // --- Modal and Settings API Key Handling ---
 function openSettingsModal() {
-    apiKeyInput.value = localStorage.getItem('nvidia_api_key') || '';
+    endpointInput.value = localStorage.getItem('opencode_endpoint') || 'http://127.0.0.1:4096';
     if (youtubeProxyInput) {
         youtubeProxyInput.value = localStorage.getItem('youtube_proxy') || '';
     }
@@ -194,18 +193,10 @@ function closeSettingsModal() {
     settingsModal.classList.add('hidden');
 }
 
-toggleKeyVisibility.addEventListener('click', () => {
-    const isPassword = apiKeyInput.type === 'password';
-    apiKeyInput.type = isPassword ? 'text' : 'password';
-    const icon = toggleKeyVisibility.querySelector('i');
-    icon.setAttribute('data-lucide', isPassword ? 'eye-off' : 'eye');
-    lucide.createIcons();
-});
-
 settingsSave.addEventListener('click', () => {
-    const key = apiKeyInput.value.trim();
+    const endpoint = endpointInput.value.trim() || 'http://127.0.0.1:4096';
     
-    localStorage.setItem('nvidia_api_key', key);
+    localStorage.setItem('opencode_endpoint', endpoint);
     
     if (youtubeProxyInput) {
         localStorage.setItem('youtube_proxy', youtubeProxyInput.value.trim());
@@ -214,7 +205,7 @@ settingsSave.addEventListener('click', () => {
         localStorage.setItem('youtube_cookies', youtubeCookiesInput.value.trim());
     }
     
-    state.apiKey = key;
+    state.endpoint = endpoint;
     closeSettingsModal();
 });
 
@@ -261,9 +252,9 @@ settingsModal.addEventListener('click', (e) => {
 });
 
 function getProviderConfig() {
-    const key = localStorage.getItem('nvidia_api_key') || '';
+    const endpoint = localStorage.getItem('opencode_endpoint') || 'http://127.0.0.1:4096';
     return {
-        api_key: key
+        endpoint: endpoint
     };
 }
 
@@ -271,9 +262,8 @@ function getProviderConfig() {
 function getHeaders() {
     const headers = { 'Content-Type': 'application/json' };
     const config = getProviderConfig();
-    if (config.api_key) {
-        headers['X-Nvidia-Key'] = config.api_key;
-        headers['X-API-Key'] = config.api_key;
+    if (config.endpoint) {
+        headers['X-Endpoint'] = config.endpoint;
     }
     return headers;
 }
@@ -371,11 +361,11 @@ function renderVideoData(data) {
     summaryVideoTitle.textContent = summary.title || "Video Analysis";
     summaryExecText.textContent = summary.executive_summary || "No executive summary generated.";
     
-    // Prompt to open settings if API key is missing
-    if (summary.executive_summary && summary.executive_summary.includes("API Key is missing")) {
+    // Prompt to open settings if OpenCode connection fails
+    if (summary.executive_summary && (summary.executive_summary.includes("OpenCode API call failed") || summary.executive_summary.includes("unable to compile"))) {
         setTimeout(() => {
             const openSettings = confirm(
-                "NVIDIA API Key is missing. To generate the AI summary and chat with the video, please provide your NVIDIA API Key in the settings panel.\n\nWould you like to open Settings now?"
+                "Could not connect to OpenCode. Please ensure OpenCode is running locally (e.g. opencode serve --port 4096).\n\nWould you like to open Settings now?"
             );
             if (openSettings) {
                 openSettingsModal();

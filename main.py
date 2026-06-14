@@ -15,12 +15,10 @@ load_dotenv()
 # Debug: Log which environment variables are set at startup
 _proxy = os.environ.get("YOUTUBE_PROXY", "")
 _cookies = os.environ.get("YOUTUBE_COOKIES", "")
-_nvidia = os.environ.get("NVIDIA_API_KEY", "")
 _ws_user = os.environ.get("WEBSHARE_USERNAME", "")
 _ws_pass = os.environ.get("WEBSHARE_PASSWORD", "")
 print(f"STARTUP ENV: YOUTUBE_PROXY={'SET ('+str(len(_proxy))+' chars)' if _proxy else 'NOT SET'}")
 print(f"STARTUP ENV: YOUTUBE_COOKIES={'SET ('+str(len(_cookies))+' chars)' if _cookies else 'NOT SET'}")
-print(f"STARTUP ENV: NVIDIA_API_KEY={'SET ('+str(len(_nvidia))+' chars)' if _nvidia else 'NOT SET'}")
 print(f"STARTUP ENV: WEBSHARE_USERNAME={'SET ('+str(len(_ws_user))+' chars)' if _ws_user else 'NOT SET'}")
 print(f"STARTUP ENV: WEBSHARE_PASSWORD={'SET' if _ws_pass else 'NOT SET'}")
 app = FastAPI(title="VideoToNotes API", description="AI-powered YouTube transcription and Q&A (Multi-Provider)")
@@ -36,7 +34,7 @@ app.add_middleware(
 
 # --- Pydantic Schemas ---
 class ProviderConfig(BaseModel):
-    api_key: str = ""
+    endpoint: str = ""
 
 class ProcessRequest(BaseModel):
     youtube_url: str
@@ -62,29 +60,24 @@ class ChatRequest(BaseModel):
 
 def resolve_config(config: ProviderConfig | None, request_headers: dict) -> ProviderConfig:
     """Resolve API configuration from input, request headers, or environment variables."""
-    api_key = ""
+    endpoint = ""
     
     if config:
-        api_key = config.api_key.strip() if config.api_key else ""
+        endpoint = config.endpoint.strip() if config.endpoint else ""
         
     # Check custom headers if config values are empty
-    nvidia_key_header = request_headers.get("x-nvidia-key")
-    if nvidia_key_header and not api_key:
-        api_key = nvidia_key_header.strip()
+    endpoint_header = request_headers.get("x-endpoint")
+    if endpoint_header and not endpoint:
+        endpoint = endpoint_header.strip()
         
-    api_key_header = request_headers.get("x-api-key")
-    if api_key_header and not api_key:
-        api_key = api_key_header.strip()
+    # If endpoint is still empty, resolve from environment variables or use local default
+    if not endpoint:
+        endpoint = os.environ.get("OPENCODE_ENDPOINT", "http://127.0.0.1:4096").strip()
         
-    # If API key is still empty, resolve from environment variables
-    if not api_key:
-        api_key = os.environ.get("NVIDIA_API_KEY", "").strip()
-        
-    obfuscated_key = api_key[:6] + "..." + api_key[-4:] if len(api_key) > 10 else f"invalid/empty (len={len(api_key)})"
-    print(f"DEBUG resolve_config: key length={len(api_key)}, starts/ends={obfuscated_key}")
+    print(f"DEBUG resolve_config: resolved endpoint={endpoint}")
             
     return ProviderConfig(
-        api_key=api_key
+        endpoint=endpoint
     )
 
 def extract_video_id(url: str) -> str:
@@ -247,51 +240,45 @@ def call_llm_api(
     chat_history: list[ChatMessage] = None,
     json_response: bool = False
 ) -> str:
-    """Call NVIDIA API Catalog using standard requests library (OpenAI compatible)."""
-    api_key = config.api_key or os.environ.get("NVIDIA_API_KEY")
-    if not api_key:
-        raise ValueError("NVIDIA API Key is missing. Please provide it in the settings panel.")
-        
-    url = "https://integrate.api.nvidia.com/v1/chat/completions"
-    headers = {
-        "Authorization": f"Bearer {api_key}",
-        "Content-Type": "application/json"
-    }
-    
-    messages = []
-    messages.append({"role": "system", "content": system_prompt})
-    
-    if chat_history:
-        for msg in chat_history:
-            # Map role to assistant if model
-            role = "assistant" if msg.role == "model" else msg.role
-            messages.append({"role": role, "content": msg.text})
-            
-    messages.append({"role": "user", "content": user_prompt})
-    
-    payload = {
-        "model": "meta/llama-3.1-70b-instruct",
-        "messages": messages,
-        "temperature": 0.2,
-        "max_tokens": 1024,
-    }
-    
-    if json_response:
-        payload["response_format"] = {"type": "json_object"}
+    """Call OpenCode local server session/message endpoints to perform AI tasks."""
+    endpoint = config.endpoint.strip()
+    if not endpoint:
+        endpoint = "http://127.0.0.1:4096"
+    else:
+        # Strip trailing slash or common open-ai paths
+        endpoint = re.sub(r"/v1(/chat/completions)?/?$", "", endpoint)
+        endpoint = endpoint.rstrip("/")
         
     try:
-        response = requests.post(url, headers=headers, json=payload, timeout=60)
-        response.raise_for_status()
-        data = response.json()
-        return data["choices"][0]["message"]["content"]
+        print(f"DEBUG opencode: Connecting to {endpoint}...", flush=True)
+        # Create a session
+        session_res = requests.post(f"{endpoint}/session", json={}, timeout=10)
+        session_res.raise_for_status()
+        session_id = session_res.json()["id"]
+        
+        # Build standard message prompt
+        full_prompt = ""
+        if chat_history:
+            for msg in chat_history:
+                # Map role model to Assistant
+                role = "User" if msg.role == "user" else "Assistant"
+                full_prompt += f"{role}: {msg.text}\n"
+        full_prompt += f"User: {user_prompt}"
+        
+        # Post message
+        payload = {
+            "parts": [{"type": "text", "text": full_prompt}],
+            "system": system_prompt
+        }
+        msg_res = requests.post(f"{endpoint}/session/{session_id}/message", json=payload, timeout=60)
+        msg_res.raise_for_status()
+        res_json = msg_res.json()
+        
+        # Extract and join text parts
+        text_parts = [part["text"] for part in res_json.get("parts", []) if part.get("type") == "text" and "text" in part]
+        return "".join(text_parts)
     except Exception as e:
-        err_msg = str(e)
-        if hasattr(e, 'response') and e.response is not None:
-            try:
-                err_msg += f" (Status: {e.response.status_code}, Body: {e.response.text})"
-            except Exception:
-                pass
-        raise RuntimeError(f"NVIDIA API request failed: {err_msg}")
+        raise RuntimeError(f"OpenCode API call failed: {str(e)}")
 
 
 def get_youtube_video_title(video_id: str) -> str:

@@ -238,15 +238,12 @@
                 </button>
             </div>
             <div class="modal-body">
-                <p>Configure your NVIDIA API details. Settings are stored locally in your browser and are never sent anywhere except the video summarizer API.</p>
+                <p>Configure your local OpenCode settings. Ensure OpenCode is running locally (e.g. <code>opencode serve --port 4096</code>).</p>
                 
-                <div class="form-group" id="api-key-group">
-                    <label for="api-key-input" id="api-key-label">NVIDIA API Key</label>
+                <div class="form-group" id="endpoint-group">
+                    <label for="endpoint-input" id="endpoint-label">OpenCode Endpoint URL</label>
                     <div class="input-with-action">
-                        <input type="password" id="api-key-input" placeholder="Enter NVIDIA_API_KEY...">
-                        <button id="toggle-key-visibility" class="view-btn" type="button">
-                            <i data-lucide="eye"></i>
-                        </button>
+                        <input type="text" id="endpoint-input" placeholder="http://127.0.0.1:4096">
                     </div>
                 </div>
                 
@@ -291,7 +288,7 @@
 
                 <div class="helper-text" id="settings-helper-text">
                     <i data-lucide="info"></i>
-                    <span id="helper-text-span">Don't have a key? Get one for free at the <a href="https://build.nvidia.com/" target="_blank">NVIDIA API Catalog</a>.</span>
+                    <span id="helper-text-span">Need help? Learn more at the <a href="https://opencode.ai/" target="_blank">OpenCode.ai</a>.</span>
                 </div>
             </div>
             <div class="modal-footer">
