@@ -227,6 +227,22 @@ window.addEventListener('DOMContentLoaded', () => {
         notesTextarea.value = localStorage.getItem('video_user_notes') || '';
     }
     
+    // Clear legacy/cached errors from local storage before rendering
+    if (state.videoData && state.videoData.summary && state.videoData.summary.executive_summary) {
+        const execSummary = state.videoData.summary.executive_summary;
+        if (
+            execSummary.includes("OpenCode") || 
+            execSummary.includes("Nvidia") || 
+            execSummary.includes("LLM API") || 
+            execSummary.includes("404 models")
+        ) {
+            localStorage.removeItem('video_data');
+            localStorage.removeItem('active_video_id');
+            state.videoData = null;
+            state.activeVideoId = '';
+        }
+    }
+    
     // Restore video player and summaries if video was previously loaded
     if (state.videoData && state.activeVideoId) {
         setTimeout(() => {
