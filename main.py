@@ -26,10 +26,7 @@ app.add_middleware(
 
 # --- Pydantic Schemas ---
 class ProviderConfig(BaseModel):
-    provider: str        # 'gemini', 'openrouter', 'groq', 'ollama', 'openai', 'nvidia', 'opencode', 'cloudflare'
     api_key: str = ""
-    model: str = ""      # e.g., 'gemini-1.5-flash', 'meta-llama/llama-3-8b-instruct:free'
-    endpoint: str = ""   # e.g., 'http://localhost:11434/v1/chat/completions'
 
 class ProcessRequest(BaseModel):
     youtube_url: str
@@ -55,25 +52,15 @@ class ChatRequest(BaseModel):
 
 def resolve_config(config: ProviderConfig | None, request_headers: dict) -> ProviderConfig:
     """Resolve API configuration from input, request headers, or environment variables."""
-    provider = "gemini"
     api_key = ""
-    model = ""
-    endpoint = ""
     
     if config:
-        provider = config.provider.strip().lower() if config.provider else "gemini"
         api_key = config.api_key.strip() if config.api_key else ""
-        model = config.model.strip() if config.model else ""
-        endpoint = config.endpoint.strip() if config.endpoint else ""
         
     # Check custom headers if config values are empty
     gemini_key_header = request_headers.get("x-gemini-key")
     if gemini_key_header and not api_key:
         api_key = gemini_key_header
-        
-    provider_header = request_headers.get("x-provider")
-    if provider_header:
-        provider = provider_header.strip().lower()
         
     api_key_header = request_headers.get("x-api-key")
     if api_key_header and not api_key:
@@ -81,28 +68,10 @@ def resolve_config(config: ProviderConfig | None, request_headers: dict) -> Prov
         
     # If API key is still empty, resolve from environment variables
     if not api_key:
-        if provider == "gemini":
-            api_key = os.environ.get("GEMINI_API_KEY", "")
-        elif provider == "nvidia":
-            api_key = os.environ.get("NVIDIA_API_KEY", "")
-        elif provider == "openrouter":
-            api_key = os.environ.get("OPENROUTER_API_KEY", "")
-        elif provider == "groq":
-            api_key = os.environ.get("GROQ_API_KEY", "")
-        elif provider == "openai":
-            api_key = os.environ.get("OPENAI_API_KEY", "")
-        elif provider == "opencode":
-            api_key = os.environ.get("OPENCODE_API_KEY", "") or "opencode"
-        elif provider == "cloudflare":
-            api_key = os.environ.get("CLOUDFLARE_API_TOKEN", "")
-            if not endpoint:
-                endpoint = os.environ.get("CLOUDFLARE_ACCOUNT_ID", "")
+        api_key = os.environ.get("GEMINI_API_KEY", "")
             
     return ProviderConfig(
-        provider=provider,
-        api_key=api_key,
-        model=model,
-        endpoint=endpoint
+        api_key=api_key
     )
 
 def extract_video_id(url: str) -> str:
@@ -234,163 +203,28 @@ def call_llm_api(
     chat_history: list[ChatMessage] = None,
     json_response: bool = False
 ) -> str:
-    """Unified routing function to call different LLM providers."""
-    provider = config.provider.lower().strip()
+    """Call Google Gemini API using native SDK."""
+    api_key = config.api_key or os.environ.get("GEMINI_API_KEY")
+    if not api_key:
+        raise ValueError("Gemini API Key is missing. Please provide it in the settings panel.")
+        
+    genai.configure(api_key=api_key)
+    model = genai.GenerativeModel("gemini-1.5-flash")
     
-    # 1. Native Gemini SDK Integration
-    if provider == "gemini":
-        api_key = config.api_key or os.environ.get("GEMINI_API_KEY")
-        if not api_key:
-            raise ValueError("Gemini API Key is missing. Please provide it in the settings panel.")
-            
-        genai.configure(api_key=api_key)
-        model_name = config.model or "gemini-1.5-flash"
-        model = genai.GenerativeModel(model_name)
+    # Build standard system instructions prompt
+    full_prompt = f"{system_prompt}\n\n"
+    if chat_history:
+        for msg in chat_history:
+            role = "User" if msg.role == "user" else "Assistant"
+            full_prompt += f"{role}: {msg.text}\n"
+    full_prompt += f"User: {user_prompt}\nAssistant:"
+    
+    generation_cfg = {}
+    if json_response:
+        generation_cfg["response_mime_type"] = "application/json"
         
-        # Build standard system instructions prompt
-        full_prompt = f"{system_prompt}\n\n"
-        if chat_history:
-            for msg in chat_history:
-                role = "User" if msg.role == "user" else "Assistant"
-                full_prompt += f"{role}: {msg.text}\n"
-        full_prompt += f"User: {user_prompt}\nAssistant:"
-        
-        generation_cfg = {}
-        if json_response:
-            generation_cfg["response_mime_type"] = "application/json"
-            
-        response = model.generate_content(full_prompt, generation_config=generation_cfg)
-        return response.text
-        
-    # 1b. Native OpenCode Server Integration
-    elif provider == "opencode":
-        endpoint = config.endpoint.strip()
-        if not endpoint:
-            endpoint = "http://127.0.0.1:4096"
-        else:
-            # Strip trailing slash or common open-ai paths
-            endpoint = re.sub(r"/v1(/chat/completions)?/?$", "", endpoint)
-            endpoint = endpoint.rstrip("/")
-            
-        try:
-            # Create a session
-            session_res = requests.post(f"{endpoint}/session", json={}, timeout=10)
-            session_res.raise_for_status()
-            session_id = session_res.json()["id"]
-            
-            # Build standard message prompt
-            full_prompt = ""
-            if chat_history:
-                for msg in chat_history:
-                    role = "User" if msg.role == "user" else "Assistant"
-                    full_prompt += f"{role}: {msg.text}\n"
-            full_prompt += f"User: {user_prompt}"
-            
-            # Post message
-            payload = {
-                "parts": [{"type": "text", "text": full_prompt}],
-                "system": system_prompt
-            }
-            msg_res = requests.post(f"{endpoint}/session/{session_id}/message", json=payload, timeout=60)
-            msg_res.raise_for_status()
-            res_json = msg_res.json()
-            
-            # Extract and join text parts
-            text_parts = [part["text"] for part in res_json.get("parts", []) if part.get("type") == "text" and "text" in part]
-            return "".join(text_parts)
-        except Exception as e:
-            raise RuntimeError(f"OpenCode API call failed: {str(e)}")
-            
-    # 2. OpenAI Compatible APIs (OpenRouter, Groq, OpenAI, Ollama, Cloudflare)
-    else:
-        # Resolve Endpoints
-        endpoint = config.endpoint.strip()
-        if provider == "cloudflare":
-            # endpoint field holds the Cloudflare Account ID
-            account_id = endpoint or os.environ.get("CLOUDFLARE_ACCOUNT_ID", "")
-            if not account_id:
-                raise ValueError("Cloudflare Account ID is missing. Please enter it in the Endpoint / Account ID field.")
-            endpoint = f"https://api.cloudflare.com/client/v4/accounts/{account_id}/ai/v1/chat/completions"
-        elif not endpoint:
-            if provider == "openrouter":
-                endpoint = "https://openrouter.ai/api/v1/chat/completions"
-            elif provider == "groq":
-                endpoint = "https://api.groq.com/openai/v1/chat/completions"
-            elif provider == "openai":
-                endpoint = "https://api.openai.com/v1/chat/completions"
-            elif provider == "ollama":
-                endpoint = "http://localhost:11434/v1/chat/completions"
-            elif provider == "nvidia":
-                endpoint = "https://integrate.api.nvidia.com/v1/chat/completions"
-            else:
-                raise ValueError(f"Unknown API Provider: {config.provider}")
-                
-        # Resolve API Keys
-        api_key = config.api_key.strip()
-        if not api_key:
-            if provider == "openrouter":
-                api_key = os.environ.get("OPENROUTER_API_KEY", "")
-            elif provider == "groq":
-                api_key = os.environ.get("GROQ_API_KEY", "")
-            elif provider == "openai":
-                api_key = os.environ.get("OPENAI_API_KEY", "")
-            elif provider == "nvidia":
-                api_key = os.environ.get("NVIDIA_API_KEY", "")
-            elif provider == "cloudflare":
-                api_key = os.environ.get("CLOUDFLARE_API_TOKEN", "")
-                
-        if not api_key and provider not in ("ollama",):
-            raise ValueError(f"API Key is missing for {config.provider.capitalize()}. Please configure it.")
-            
-        # Resolve Model Names
-        model_name = config.model.strip()
-        if not model_name:
-            if provider == "openrouter":
-                model_name = "meta-llama/llama-3-8b-instruct:free"
-            elif provider == "groq":
-                model_name = "llama3-8b-8192"
-            elif provider == "openai":
-                model_name = "gpt-4o-mini"
-            elif provider == "ollama":
-                model_name = "llama3"
-            elif provider == "nvidia":
-                model_name = "moonshotai/kimi-k2.6"
-            elif provider == "cloudflare":
-                model_name = "@cf/meta/llama-3.1-8b-instruct"
-                
-        # Format OpenAI message payloads
-        messages = [{"role": "system", "content": system_prompt}]
-        if chat_history:
-            for msg in chat_history:
-                role = "user" if msg.role == "user" else "assistant"
-                messages.append({"role": role, "content": msg.text})
-        messages.append({"role": "user", "content": user_prompt})
-        
-        headers = {"Content-Type": "application/json"}
-        if api_key:
-            headers["Authorization"] = f"Bearer {api_key}"
-            
-        payload = {
-            "model": model_name,
-            "messages": messages,
-            "temperature": 0.2 if json_response else 0.5
-        }
-        
-        if provider == "nvidia":
-            payload["max_tokens"] = 16384
-            payload["temperature"] = 1.00
-            payload["top_p"] = 1.00
-            
-        if json_response and provider in ["openai", "groq", "openrouter", "nvidia", "cloudflare"]:
-            payload["response_format"] = {"type": "json_object"}
-            
-        try:
-            response = requests.post(endpoint, headers=headers, json=payload, timeout=60)
-            response.raise_for_status()
-            result_json = response.json()
-            return result_json["choices"][0]["message"]["content"]
-        except Exception as e:
-            raise RuntimeError(f"HTTP call to {provider.capitalize()} API failed: {str(e)}")
+    response = model.generate_content(full_prompt, generation_config=generation_cfg)
+    return response.text
 
 
 def get_youtube_video_title(video_id: str) -> str:

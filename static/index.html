@@ -238,21 +238,7 @@
                 </button>
             </div>
             <div class="modal-body">
-                <p>Configure your preferred LLM Provider. Settings are stored locally in your browser and are never sent anywhere except the video summarizer API.</p>
-                
-                <div class="form-group">
-                    <label for="provider-select">API Provider</label>
-                    <select id="provider-select" class="settings-select">
-                        <option value="gemini">Google Gemini</option>
-                        <option value="nvidia">Nvidia API (kimi-k2.6)</option>
-                        <option value="openai">OpenAI (gpt-4o-mini)</option>
-                        <option value="groq">Groq (llama3-8b)</option>
-                        <option value="openrouter">OpenRouter</option>
-                        <option value="ollama">Ollama (Local)</option>
-                        <option value="cloudflare">Cloudflare Workers AI</option>
-                        <option value="opencode">OpenCode (Local)</option>
-                    </select>
-                </div>
+                <p>Configure your Google Gemini API details. Settings are stored locally in your browser and are never sent anywhere except the video summarizer API.</p>
                 
                 <div class="form-group" id="api-key-group">
                     <label for="api-key-input" id="api-key-label">Gemini API Key</label>
@@ -261,20 +247,6 @@
                         <button id="toggle-key-visibility" class="view-btn" type="button">
                             <i data-lucide="eye"></i>
                         </button>
-                    </div>
-                </div>
-
-                <div class="form-group" id="model-group">
-                    <label for="model-input">Model Name (Optional)</label>
-                    <div class="input-with-action">
-                        <input type="text" id="model-input" placeholder="Default model will be used if blank">
-                    </div>
-                </div>
-
-                <div class="form-group" id="endpoint-group">
-                    <label for="endpoint-input" id="endpoint-label">Endpoint URL (Optional)</label>
-                    <div class="input-with-action">
-                        <input type="text" id="endpoint-input" placeholder="Default endpoint will be used if blank">
                     </div>
                 </div>
                 

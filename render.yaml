@@ -7,10 +7,6 @@ services:
     envVars:
       - key: GEMINI_API_KEY
         sync: false
-      - key: CLOUDFLARE_API_TOKEN
-        sync: false
-      - key: CLOUDFLARE_ACCOUNT_ID
-        sync: false
       - key: YOUTUBE_PROXY
         sync: false
       - key: YOUTUBE_COOKIES

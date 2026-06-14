@@ -1,7 +1,6 @@
 // Application State
 const state = {
-    provider: localStorage.getItem('api_provider') || 'gemini',
-    apiKey: localStorage.getItem(`api_key_${localStorage.getItem('api_provider') || 'gemini'}`) || '',
+    apiKey: localStorage.getItem('gemini_api_key') || '',
     activeVideoId: localStorage.getItem('active_video_id') || '',
     videoData: localStorage.getItem('video_data') ? JSON.parse(localStorage.getItem('video_data')) : null,
     chatHistory: [],
@@ -68,15 +67,6 @@ const settingsSave = document.getElementById('settings-save');
 const settingsCancel = document.getElementById('settings-cancel');
 const closeModalBtn = document.getElementById('close-modal-btn');
 
-const providerSelect = document.getElementById('provider-select');
-const apiKeyLabel = document.getElementById('api-key-label');
-const modelInput = document.getElementById('model-input');
-const endpointInput = document.getElementById('endpoint-input');
-const helperTextSpan = document.getElementById('helper-text-span');
-const modelGroup = document.getElementById('model-group');
-const endpointGroup = document.getElementById('endpoint-group');
-const endpointLabel = document.getElementById('endpoint-label');
-const apiKeyGroup = document.getElementById('api-key-group');
 const youtubeProxyInput = document.getElementById('youtube-proxy-input');
 const youtubeCookiesInput = document.getElementById('youtube-cookies-input');
 
@@ -186,9 +176,15 @@ tabButtons.forEach(btn => {
 });
 
 // --- Modal and Settings API Key Handling ---
+// --- Modal and Settings API Key Handling ---
 function openSettingsModal() {
-    providerSelect.value = state.provider;
-    updateModalFields(state.provider);
+    apiKeyInput.value = localStorage.getItem('gemini_api_key') || '';
+    if (youtubeProxyInput) {
+        youtubeProxyInput.value = localStorage.getItem('youtube_proxy') || '';
+    }
+    if (youtubeCookiesInput) {
+        youtubeCookiesInput.value = localStorage.getItem('youtube_cookies') || '';
+    }
     keyStatusMsg.className = 'key-status';
     keyStatusMsg.textContent = '';
     settingsModal.classList.remove('hidden');
@@ -197,103 +193,6 @@ function openSettingsModal() {
 function closeSettingsModal() {
     settingsModal.classList.add('hidden');
 }
-
-function updateModalFields(provider) {
-    let keyLabel = 'API Key';
-    let keyPlaceholder = 'Enter API Key...';
-    let helperHtml = '';
-    let showKey = true;
-    let showModel = true;
-    let showEndpoint = true;
-    
-    if (provider === 'gemini') {
-        keyLabel = 'Gemini API Key';
-        keyPlaceholder = 'Enter GEMINI_API_KEY...';
-        helperHtml = `Don't have a key? Get one for free at the <a href="https://aistudio.google.com/" target="_blank">Google AI Studio</a>.`;
-        showModel = false;
-        showEndpoint = false;
-    } else if (provider === 'nvidia') {
-        keyLabel = 'Nvidia API Key';
-        keyPlaceholder = 'Enter NVIDIA_API_KEY...';
-        helperHtml = `Don't have a key? Get one at the <a href="https://build.nvidia.com/" target="_blank">Nvidia API Catalog</a>.`;
-        showModel = true;
-        showEndpoint = false;
-    } else if (provider === 'openai') {
-        keyLabel = 'OpenAI API Key';
-        keyPlaceholder = 'Enter OPENAI_API_KEY...';
-        helperHtml = `Configure OpenAI key. Get one at the <a href="https://platform.openai.com/" target="_blank">OpenAI Developer Platform</a>.`;
-        showModel = true;
-        showEndpoint = false;
-    } else if (provider === 'groq') {
-        keyLabel = 'Groq API Key';
-        keyPlaceholder = 'Enter GROQ_API_KEY...';
-        helperHtml = `Get a free API key at the <a href="https://console.groq.com/" target="_blank">Groq Console</a>.`;
-        showModel = true;
-        showEndpoint = false;
-    } else if (provider === 'openrouter') {
-        keyLabel = 'OpenRouter API Key';
-        keyPlaceholder = 'Enter OpenRouter API Key...';
-        helperHtml = `Configure OpenRouter API. Get a key at <a href="https://openrouter.ai/" target="_blank">OpenRouter</a>.`;
-        showModel = true;
-        showEndpoint = false;
-    } else if (provider === 'ollama') {
-        showKey = false;
-        showModel = true;
-        showEndpoint = true;
-        helperHtml = `Ensure Ollama is running locally. Learn more at <a href="https://ollama.com/" target="_blank">Ollama</a>.`;
-    } else if (provider === 'opencode') {
-        showKey = false;
-        showModel = true;
-        showEndpoint = true;
-        helperHtml = `Ensure OpenCode is running locally. Learn more at <a href="https://opencode.ai/" target="_blank">OpenCode</a>. Try running: <code>opencode serve --port 4096</code>.`;
-    } else if (provider === 'cloudflare') {
-        keyLabel = 'Cloudflare API Token';
-        keyPlaceholder = 'Enter Cloudflare API Token...';
-        helperHtml = `Get your API Token at <a href="https://dash.cloudflare.com/profile/api-tokens" target="_blank">Cloudflare API Tokens</a>. Enable <strong>Workers AI</strong> permissions.`;
-        showModel = true;
-        showEndpoint = true;
-    }
-    
-    apiKeyLabel.textContent = keyLabel;
-    apiKeyInput.placeholder = keyPlaceholder;
-    helperTextSpan.innerHTML = helperHtml;
-    
-    if (showKey) apiKeyGroup.classList.remove('hidden');
-    else apiKeyGroup.classList.add('hidden');
-    
-    if (showModel) modelGroup.classList.remove('hidden');
-    else modelGroup.classList.add('hidden');
-    
-    if (showEndpoint) endpointGroup.classList.remove('hidden');
-    else endpointGroup.classList.add('hidden');
-    
-    // Dynamically relabel the endpoint field for Cloudflare
-    if (endpointLabel) {
-        endpointLabel.textContent = provider === 'cloudflare' ? 'Account ID' : 'Endpoint URL (Optional)';
-    }
-    if (endpointInput) {
-        endpointInput.placeholder = provider === 'cloudflare' ? 'Enter your Cloudflare Account ID...' : 'Default endpoint will be used if blank';
-    }
-    
-    apiKeyInput.value = localStorage.getItem(`api_key_${provider}`) || '';
-    modelInput.value = localStorage.getItem(`api_model_${provider}`) || '';
-    endpointInput.value = localStorage.getItem(`api_endpoint_${provider}`) || '';
-    
-    if (provider === 'gemini' && !apiKeyInput.value) {
-        apiKeyInput.value = localStorage.getItem('gemini_api_key') || '';
-    }
-    
-    if (youtubeProxyInput) {
-        youtubeProxyInput.value = localStorage.getItem('youtube_proxy') || '';
-    }
-    if (youtubeCookiesInput) {
-        youtubeCookiesInput.value = localStorage.getItem('youtube_cookies') || '';
-    }
-}
-
-providerSelect.addEventListener('change', (e) => {
-    updateModalFields(e.target.value);
-});
 
 toggleKeyVisibility.addEventListener('click', () => {
     const isPassword = apiKeyInput.type === 'password';
@@ -304,19 +203,9 @@ toggleKeyVisibility.addEventListener('click', () => {
 });
 
 settingsSave.addEventListener('click', () => {
-    const provider = providerSelect.value;
     const key = apiKeyInput.value.trim();
-    const model = modelInput.value.trim();
-    const endpoint = endpointInput.value.trim();
     
-    localStorage.setItem('api_provider', provider);
-    localStorage.setItem(`api_key_${provider}`, key);
-    localStorage.setItem(`api_model_${provider}`, model);
-    localStorage.setItem(`api_endpoint_${provider}`, endpoint);
-    
-    if (provider === 'gemini') {
-        localStorage.setItem('gemini_api_key', key);
-    }
+    localStorage.setItem('gemini_api_key', key);
     
     if (youtubeProxyInput) {
         localStorage.setItem('youtube_proxy', youtubeProxyInput.value.trim());
@@ -325,7 +214,6 @@ settingsSave.addEventListener('click', () => {
         localStorage.setItem('youtube_cookies', youtubeCookiesInput.value.trim());
     }
     
-    state.provider = provider;
     state.apiKey = key;
     closeSettingsModal();
 });
@@ -333,14 +221,6 @@ settingsSave.addEventListener('click', () => {
 // Auto-open settings if key is missing on first load
 window.addEventListener('DOMContentLoaded', () => {
     lucide.createIcons();
-
-    // Pre-configure OpenCode endpoint if not already set (for public visitors)
-    if (!localStorage.getItem('api_endpoint_opencode')) {
-        localStorage.setItem('api_endpoint_opencode', 'http://127.0.0.1:4096');
-    }
-    if (!localStorage.getItem('api_provider')) {
-        localStorage.setItem('api_provider', 'gemini');
-    }
     
     // Load persisted notes
     if (notesTextarea) {
@@ -365,16 +245,9 @@ settingsModal.addEventListener('click', (e) => {
 });
 
 function getProviderConfig() {
-    const provider = state.provider;
-    const key = localStorage.getItem(`api_key_${provider}`) || localStorage.getItem('gemini_api_key') || '';
-    const model = localStorage.getItem(`api_model_${provider}`) || '';
-    const endpoint = localStorage.getItem(`api_endpoint_${provider}`) || '';
-    
+    const key = localStorage.getItem('gemini_api_key') || '';
     return {
-        provider: provider,
-        api_key: key,
-        model: model,
-        endpoint: endpoint
+        api_key: key
     };
 }
 
@@ -385,7 +258,6 @@ function getHeaders() {
     if (config.api_key) {
         headers['X-Gemini-Key'] = config.api_key;
         headers['X-API-Key'] = config.api_key;
-        headers['X-Provider'] = config.provider;
     }
     return headers;
 }
