@@ -8,10 +8,10 @@ Welcome to **VideoToNotes.ai**, a premium desktop application that downloads, tr
 ### 🎨 App Showcase
 
 #### ☀️ Light Mode
-![Light Mode Screenshot](light_mode.png)
+![Light Mode Screenshot](light_mode_v2.png)
 
 #### 🌙 Dark Mode
-![Dark Mode Screenshot](dark_mode.png)
+![Dark Mode Screenshot](dark_mode_v2.png)
 
 ---
 
