@@ -1,24 +1,6 @@
-# Environment variables
-.env
+# Ignore everything
+*
 
-# Python caching
-__pycache__/
-*.pyc
-*.pyo
-*.pyd
-.pytest_cache/
-
-# Local IDE/editor settings
-.vscode/
-.idea/
-
-# Local OS files
-.DS_Store
-Thumbs.db
-
-# PyInstaller build outputs and installers
-build/
-dist/
-*.zip
-*.exe
-scratch/
+# Except these files
+!VideoToNotes-Setup.zip
+!.gitignore
