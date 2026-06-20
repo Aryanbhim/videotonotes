@@ -10,7 +10,11 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <!-- Lucide Icons -->
     <script src="https://unpkg.com/lucide@latest"></script>
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="style.css?v=9">
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
+    <link rel="manifest" href="/site.webmanifest">
 </head>
 <body>
     <!-- Background Glows -->
@@ -42,6 +46,9 @@
             </div>
 
             <div class="header-actions">
+                <button id="theme-toggle-btn" class="icon-btn" title="Toggle Theme">
+                    <i data-lucide="sun"></i>
+                </button>
                 <button id="settings-btn" class="icon-btn" title="API Settings">
                     <i data-lucide="settings"></i>
                 </button>
@@ -66,6 +73,8 @@
                     <div id="player-container" class="player-container hidden">
                         <div id="youtube-player"></div>
                     </div>
+                    <!-- Resize Handle -->
+                    <div id="video-resize-handle" class="video-resize-handle" title="Drag corner to resize video player"></div>
                 </div>
 
                 <!-- Chat Section -->
@@ -198,8 +207,8 @@
                                         <h3>Personal Notes</h3>
                                     </div>
                                     <div class="notes-actions">
-                                        <button id="clear-notes-btn" class="icon-btn danger-btn" title="Clear All Notes">
-                                            <i data-lucide="trash-2"></i>
+                                        <button id="copy-notes-btn" class="icon-btn" title="Copy Notes to Clipboard">
+                                            <i data-lucide="copy"></i>
                                         </button>
                                         <button id="download-pdf-btn" class="glow-btn notes-btn" title="Download Notes as PDF">
                                             <i data-lucide="download"></i>
@@ -216,17 +225,7 @@
         </main>
     </div>
 
-    <!-- Processing Overlay Screen -->
-    <div class="overlay hidden" id="loading-overlay">
-        <div class="glass-loader">
-            <div class="loading-spinner"></div>
-            <h2>Processing Video</h2>
-            <p id="loading-step">Extracting YouTube details...</p>
-            <div class="loading-bar">
-                <div class="loading-progress" id="loading-progress"></div>
-            </div>
-        </div>
-    </div>
+
 
     <!-- Settings API Key Modal -->
     <div class="modal-overlay hidden" id="settings-modal">
@@ -307,6 +306,6 @@
         firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
     </script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-    <script src="app.js"></script>
+    <script src="app.js?v=9"></script>
 </body>
 </html>

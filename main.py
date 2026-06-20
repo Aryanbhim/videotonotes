@@ -9,8 +9,18 @@ from pydantic import BaseModel
 from youtube_transcript_api import YouTubeTranscriptApi
 from dotenv import load_dotenv
 
-# Load server-side .env file if present
-load_dotenv()
+import sys
+
+# Resolve base directory — works both as .py script and PyInstaller frozen .exe
+if getattr(sys, 'frozen', False):
+    _BASE_DIR = getattr(sys, '_MEIPASS', os.path.dirname(sys.executable))
+else:
+    _BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
+# Load server-side .env file if present (checking executable dir first, then bundle fallback)
+if getattr(sys, 'frozen', False):
+    load_dotenv(os.path.join(os.path.dirname(sys.executable), ".env"))
+load_dotenv(os.path.join(_BASE_DIR, ".env"))
 
 # Debug: Log which environment variables are set at startup
 _proxy = os.environ.get("YOUTUBE_PROXY", "")
@@ -270,7 +280,7 @@ def call_llm_api(
             "parts": [{"type": "text", "text": full_prompt}],
             "system": system_prompt
         }
-        msg_res = requests.post(f"{endpoint}/session/{session_id}/message", json=payload, timeout=60)
+        msg_res = requests.post(f"{endpoint}/session/{session_id}/message", json=payload, timeout=300)
         msg_res.raise_for_status()
         res_json = msg_res.json()
         
@@ -326,14 +336,14 @@ async def process_video(request: ProcessRequest, http_request: Request):
     # AI summary generation
     output_language = request.language.strip() if request.language else "English"
     try:
-        system_prompt = f"""You are an expert video analyst. Analyze the transcript and generate a comprehensive summary in JSON format.
-You MUST write ALL output text — including the title, executive_summary, key_takeaways, chapter titles, chapter summaries, and the mindmap — ENTIRELY in {output_language}.
+        system_prompt = f"""You are an expert video analyst. Analyze the transcript and generate a concise summary in JSON format.
+You MUST write ALL output text — including the title, executive_summary, key_takeaways, chapter titles, and chapter summaries — ENTIRELY in {output_language}.
 Do NOT mix languages. Every single word in the JSON values must be in {output_language}.
 The transcript may be in a different language; translate and re-express all content in {output_language}."""
         user_prompt = f"""
 Analyze the following YouTube video transcript and generate a structured JSON summary.
-Identify the main topics and divide the video into logical chapters with summaries and timestamps (start_time in seconds).
-Also generate an interactive hierarchical markdown mindmap string representing the key concepts and flow of the video.
+Identify the main topics and divide the video into logical chapters (maximum of 10 chapters).
+For each chapter, provide a title, a start_time (in seconds), and a detailed 'summary' which MUST be an array of descriptive paragraphs or bullet points covering all the key events, facts, or tools mentioned in that segment.
 
 IMPORTANT: Write every single value in the JSON in {output_language} only.
 
@@ -343,7 +353,7 @@ Here is the transcript:
 JSON Output Schema:
 {{
   "title": "A highly descriptive and interesting title for the video summary (in {output_language})",
-  "executive_summary": "A detailed 3-4 sentence paragraph summarizing the overall topic, context, and key conclusions (in {output_language}).",
+  "executive_summary": "A concise 2-3 sentence paragraph summarizing the overall topic, context, and key conclusions (in {output_language}).",
   "key_takeaways": [
     "Key lesson or fact 1 from the video (in {output_language})",
     "Key lesson or fact 2 from the video (in {output_language})",
@@ -352,11 +362,13 @@ JSON Output Schema:
   "chapters": [
     {{
       "title": "Chapter Title (in {output_language})",
-      "summary": "Clear summary of this chapter section (in {output_language}).",
+      "summary": [
+        "First key point of this chapter (in {output_language}).",
+        "Second key point of this chapter (in {output_language})."
+      ],
       "start_time": 0.0
     }}
-  ],
-  "mindmap": "# Video Title\\n## Branch 1\\n- Subtopic A\\n  - Details\\n- Subtopic B\\n## Branch 2\\n- Subtopic C (all in {output_language})"
+  ]
 }}
 
 Provide ONLY raw JSON output. Do not include markdown formatting or ```json codeblock wrappers.
@@ -383,11 +395,10 @@ Provide ONLY raw JSON output. Do not include markdown formatting or ```json code
             "title": actual_title,
             "executive_summary": f"We successfully retrieved the video details, but were unable to compile the AI summary using your API settings. Error: {str(e)}",
             "key_takeaways": [
-                "Could not load AI takeaways. Verify your NVIDIA API Key configuration or connection status.",
-                "Verify that your NVIDIA API key is active and correctly configured."
+                "Could not load AI takeaways. Verify your OpenCode connection status.",
+                "Verify that your local OpenCode server is running."
             ],
-            "chapters": [],
-            "mindmap": f"# Video Summary ({video_id})\\n## Error\\n- Could not compile AI Mindmap"
+            "chapters": []
         }
         
     return {
@@ -424,6 +435,8 @@ Transcript:
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"LLM API Chat failed: {str(e)}")
 
-# Mount static folder for web app files
-os.makedirs("static", exist_ok=True)
-app.mount("/", StaticFiles(directory="static", html=True), name="static")
+# Mount static folder for web app files — use absolute path so it works
+# whether run as a plain script or as a PyInstaller-frozen .exe
+_STATIC_DIR = os.path.join(_BASE_DIR, "static")
+os.makedirs(_STATIC_DIR, exist_ok=True)
+app.mount("/", StaticFiles(directory=_STATIC_DIR, html=True), name="static")
