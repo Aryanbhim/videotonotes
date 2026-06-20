@@ -3,6 +3,11 @@
 
 Welcome to **VideoToNotes.ai**, a premium desktop application that downloads, transcripts, summarizes, and lets you chat with any YouTube video directly on your computer. By executing local AI models on your own hardware, your transcripts, notes, and search queries remain completely secure, private, and free.
 
+<p align="center">
+  <img src="videotonotes_dark_mode.png" width="49%" alt="VideoToNotes Dark Mode" />
+  <img src="videotonotes_light_mode.png" width="49%" alt="VideoToNotes Light Mode" />
+</p>
+
 ---
 
 ## ✨ Features
