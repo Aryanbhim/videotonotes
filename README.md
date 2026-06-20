@@ -5,6 +5,16 @@ Welcome to **VideoToNotes.ai**, a premium desktop application that downloads, tr
 
 ---
 
+### 🎨 App Showcase
+
+#### ☀️ Light Mode
+![Light Mode Screenshot](light_mode.png)
+
+#### 🌙 Dark Mode
+![Dark Mode Screenshot](dark_mode.png)
+
+---
+
 ## ✨ Features
 
 *   **⚡ Local AI Summaries & Chapters:** Divide videos into logical, timestamped chapters and receive complete executive summaries automatically.
